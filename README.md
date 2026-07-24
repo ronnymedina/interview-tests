@@ -137,7 +137,9 @@ que **comparar lo reconocido contra el texto de referencia**, que es justo lo qu
 
 ## Limites
 
-- **Maximo 30 segundos de audio por intento.** Es el limite del modo `recognize_once`
-  con deteccion de omisiones activada. La pagina corta la grabacion sola al llegar.
-  Practica con parrafos cortos.
+- **Sin limite de duracion por intento.** Este proyecto usa **reconocimiento continuo**
+  (`start_continuous_recognition`), que no tiene el limite de ~30 s del modo
+  `recognize_once`. La grabacion dura hasta que pulsas **Parar**. Aun asi conviene
+  practicar con parrafos cortos: el tiempo de evaluacion en Azure escala con la
+  duracion del audio.
 - Servidor pensado para `localhost`: no tiene autenticacion.
