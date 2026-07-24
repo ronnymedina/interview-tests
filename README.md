@@ -11,11 +11,31 @@ de Azure Speech (Pronunciation Assessment) te dice que palabras y que sonidos fa
 
 ## Puesta en marcha
 
-1. **Crear el recurso en Azure**
-   Portal de Azure → *Create a resource* → **Speech** → crealo (el tier gratuito `F0`
-   alcanza de sobra: 5 horas de audio al mes).
-   Cuando termine, entra al recurso → *Keys and Endpoint* y copia **KEY 1** y la
-   **Location/Region** (ej. `eastus`).
+1. **Habilitar la credencial de Azure Speech**
+
+   La app necesita una *key* de un recurso **Speech** de Azure. Es gratis con el tier
+   `F0` (5 horas de audio al mes, suficiente para practicar). Pasos:
+
+   1. **Cuenta de Azure.** Si no tienes, crea una gratis en
+      <https://azure.microsoft.com/free/>. Pide tarjeta para verificar identidad, pero
+      el tier `F0` de Speech no cobra.
+   2. **Crear el recurso Speech.** Entra al [portal de Azure](https://portal.azure.com)
+      → *Create a resource* → busca **Speech** → *Create*. Rellena:
+      - **Subscription** y **Resource group** (crea uno nuevo si hace falta, ej. `rg-review-ingles`).
+      - **Region**: elige la mas cercana a ti para bajar la latencia (ej. `eastus`,
+        `brazilsouth`, `westeurope`). **Anota cual elegiste**, va en `AZURE_SPEECH_REGION`.
+      - **Name**: cualquiera, ej. `speech-review-ingles`.
+      - **Pricing tier**: **Free F0**.
+      - *Review + create* → *Create* y espera a que termine el despliegue.
+   3. **Copiar la key y la region.** Ve al recurso creado (*Go to resource*) →
+      menu lateral **Keys and Endpoint**. Copia:
+      - **KEY 1** → sera tu `AZURE_SPEECH_KEY`.
+      - **Location/Region** → sera tu `AZURE_SPEECH_REGION` (debe coincidir con la del paso anterior).
+
+   > La key es un **secreto**: no la subas a git ni la compartas. Solo vive en tu `.env`
+   > local (que ya esta en `.gitignore`). Si se filtra, regenerala en
+   > *Keys and Endpoint → Regenerate Key*. Detalle de todas las variables en
+   > [VARIABLES-DE-ENTORNO.md](VARIABLES-DE-ENTORNO.md).
 
 2. **Configurar**
 
@@ -23,7 +43,7 @@ de Azure Speech (Pronunciation Assessment) te dice que palabras y que sonidos fa
    cp .env.example .env
    ```
 
-   Edita `.env` y pega tu key y tu region.
+   Edita `.env` y pega tu `AZURE_SPEECH_KEY` y tu `AZURE_SPEECH_REGION`.
 
 3. **Instalar y correr**
 
