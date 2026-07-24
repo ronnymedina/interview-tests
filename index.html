@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Practica de pronunciacion</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Practica de pronunciacion</h1>
+
+      <nav class="menu">
+        <button type="button" data-view="practice" class="active">Practicar</button>
+        <button type="button" data-view="texts">Textos</button>
+        <button type="button" data-view="words">Banco de palabras</button>
+        <button type="button" data-view="history">Historial</button>
+        <button type="button" data-view="settings">Ajustes</button>
+      </nav>
+
+      <!-- Vista: practicar textos -->
+      <section id="view-practice" class="view">
+        <p class="sub">
+          Elige un texto guardado, leelo en voz alta y mira que palabras y que sonidos
+          necesitas mejorar.
+        </p>
+
+        <div id="no-texts" class="hint hidden">
+          No tienes textos guardados. Crea uno en la pestana
+          <button type="button" class="link" data-goto="texts">Textos</button>
+          para empezar a practicar.
+        </div>
+
+        <label for="text-select">Texto</label>
+        <select id="text-select"></select>
+
+        <div class="reference-block">
+          <button id="listen-text" type="button" class="secondary small" disabled>
+            🔊 Escuchar
+          </button>
+          <p id="reference" class="reference-text"></p>
+        </div>
+
+        <div class="controls">
+          <button id="record" type="button">Hablar</button>
+          <button id="cancel" type="button" class="secondary" disabled>Cancelar</button>
+          <span id="status" class="status"></span>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        <section id="results" class="hidden">
+          <div id="scores" class="scores"></div>
+
+          <h2>Palabra por palabra</h2>
+          <p class="hint">Haz clic en una palabra para ver sus sonidos.</p>
+          <div id="words" class="words"></div>
+
+          <h2>Lo que Azure escucho</h2>
+          <p id="recognized" class="recognized"></p>
+        </section>
+      </section>
+
+      <!-- Vista: textos guardados -->
+      <section id="view-texts" class="view hidden">
+        <h2>Textos</h2>
+        <p class="hint">
+          Guarda los textos que quieres practicar. Cada uno lleva su historial de
+          practica y su score promedio.
+        </p>
+
+        <button id="new-text" type="button">Nuevo texto</button>
+
+        <!-- Formulario de crear/editar, oculto hasta que se abre -->
+        <form id="text-form" class="text-form hidden">
+          <input type="hidden" id="text-id" />
+          <label for="text-title">Titulo</label>
+          <input id="text-title" type="text" maxlength="200" />
+
+          <label for="text-content">Contenido</label>
+          <textarea id="text-content" rows="5"
+            placeholder="The quick brown fox jumps over the lazy dog."></textarea>
+
+          <label for="text-difficulty">Dificultad (1-10, opcional)</label>
+          <input id="text-difficulty" type="number" min="1" max="10" />
+
+          <div class="controls">
+            <button type="submit">Guardar</button>
+            <button type="button" id="cancel-text" class="secondary">Cancelar</button>
+            <span id="text-form-error" class="error hidden"></span>
+          </div>
+        </form>
+
+        <table id="texts">
+          <thead>
+            <tr>
+              <th>Titulo</th>
+              <th>Dificultad</th>
+              <th>Veces</th>
+              <th>Promedio</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Vista: banco de palabras -->
+      <section id="view-words" class="view hidden">
+        <h2>Banco de palabras</h2>
+        <p class="hint">
+          Cada palabra que has leido, agrupada (no se repite) y con su score promedio.
+          Haz clic en una palabra para ver los scores de cada intento. Ordenadas de la
+          que mas necesitas mejorar a la que ya dominas.
+        </p>
+
+        <div class="filters">
+          <button type="button" data-filter="all" class="active">Todas</button>
+          <button type="button" data-filter="poor">🔴 Peores</button>
+          <button type="button" data-filter="fair">🟡 Regulares</button>
+          <button type="button" data-filter="good">🟢 Dominadas</button>
+        </div>
+
+        <table id="word-bank">
+          <thead>
+            <tr>
+              <th>Palabra</th>
+              <th>Promedio</th>
+              <th>Veces</th>
+              <th>Fallada</th>
+              <th>Saltada</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Vista: historial de intentos -->
+      <section id="view-history" class="view hidden">
+        <h2>Historial de intentos</h2>
+        <table id="history">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Texto</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Vista: ajustes -->
+      <section id="view-settings" class="view hidden">
+        <h2>Ajustes</h2>
+        <p class="hint">Ajustes de la voz que lee los textos y las palabras (boton 🔊).</p>
+
+        <label for="tts-rate">
+          Velocidad de la voz: <span id="tts-rate-value">0.9</span>×
+        </label>
+        <input id="tts-rate" type="range" min="0.5" max="1.2" step="0.05" value="0.9" />
+
+        <label for="tts-voice">Voz</label>
+        <select id="tts-voice"></select>
+
+        <div class="controls">
+          <button id="tts-test" type="button" class="secondary">🔊 Probar voz</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

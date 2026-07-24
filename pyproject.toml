@@ -1,0 +1,18 @@
+[project]
+name = "review-ingles"
+version = "0.1.0"
+description = "Practica de pronunciacion en ingles con Azure Speech Pronunciation Assessment"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "python-multipart>=0.0.20",
+    "python-dotenv>=1.0",
+    "azure-cognitiveservices-speech>=1.40",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
