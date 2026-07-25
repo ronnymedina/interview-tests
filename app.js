@@ -735,7 +735,6 @@ function renderScoreCards(container, scores) {
 // Muestra una pregunta nueva: la escribe y la habla.
 function showQuestion(question) {
   els.convQuestion.textContent = question;
-  els.convTurn.classList.add("hidden");
   speak(question);
 }
 
@@ -783,6 +782,7 @@ async function startConversation() {
   els.convSetup.classList.add("hidden");
   els.convFinal.classList.add("hidden");
   els.convActive.classList.remove("hidden");
+  els.convTurn.classList.add("hidden"); // sin transcripcion arrastrada de otra conversacion
   showQuestion(data.question);
 }
 
@@ -821,7 +821,8 @@ async function sendConversationAnswer(wavBlob) {
   const data = await response.json();
   if (data.turn_scores) renderScoreCards(els.convTurnScores, data.turn_scores);
   else els.convTurnScores.innerHTML = "";
-  els.convRecognized.textContent = data.recognized_text || "(vacio)";
+  els.convRecognized.textContent =
+    data.recognized_text || "(la API no captó tu voz correctamente)";
   els.convTurn.classList.remove("hidden");
 
   if (data.final) {
@@ -846,6 +847,7 @@ els.convListen.addEventListener("click", () => speak(els.convQuestion.textConten
 els.convRecord.addEventListener("click", async () => {
   if (state === "idle") {
     recordSink = sendConversationAnswer;
+    els.convTurn.classList.add("hidden"); // limpia la transcripcion del turno anterior
     if (convSettings.source === "browser") startBrowserRecognition();
     await startRecording();
     if (state === "recording") {
