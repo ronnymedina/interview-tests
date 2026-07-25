@@ -495,3 +495,8 @@ button.small {
 #conv-question {
   min-height: 1.5em;
 }
+
+#conv-source {
+  width: 100%;
+  box-sizing: border-box;
+}

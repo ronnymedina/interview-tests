@@ -38,6 +38,8 @@ const els = {
   convSetup: document.getElementById("conv-setup"),
   convPrompt: document.getElementById("conv-prompt"),
   convQuestions: document.getElementById("conv-questions"),
+  convSource: document.getElementById("conv-source"),
+  convSourceNote: document.getElementById("conv-source-note"),
   convStart: document.getElementById("conv-start"),
   convSetupError: document.getElementById("conv-setup-error"),
   convActive: document.getElementById("conv-active"),
@@ -660,6 +662,58 @@ function clearError() {
 
 let conversationId = null;
 
+// Reconocimiento de voz del navegador (Web Speech API). Puede no existir (Firefox).
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// Fuente de transcripcion elegida, persistida en el navegador.
+const convSettings = {
+  source: localStorage.getItem("conv-source") || "browser",
+};
+
+let recognition = null;        // instancia activa de SpeechRecognition
+let browserTranscript = "";    // texto acumulado del reconocimiento del turno
+let recognitionEnded = null;   // promesa que resuelve cuando el reconocimiento termina
+
+// Inicia el reconocimiento del navegador para el turno actual.
+function startBrowserRecognition() {
+  browserTranscript = "";
+  recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        browserTranscript += event.results[i][0].transcript + " ";
+      }
+    }
+  };
+  recognitionEnded = new Promise((resolve) => {
+    recognition.onend = resolve;
+    recognition.onerror = resolve; // no bloquear el turno si el reconocimiento falla
+  });
+  recognition.start();
+}
+
+function stopBrowserRecognition() {
+  if (recognition) recognition.stop();
+}
+
+// Aplica el ajuste guardado al selector y desactiva "Navegador" si no hay soporte.
+function initConversationSettings() {
+  if (!SpeechRecognition) {
+    convSettings.source = "azure";
+    const browserOption = els.convSource.querySelector('option[value="browser"]');
+    if (browserOption) browserOption.disabled = true;
+    els.convSourceNote.classList.remove("hidden");
+  }
+  els.convSource.value = convSettings.source;
+  els.convSource.addEventListener("change", () => {
+    convSettings.source = els.convSource.value;
+    localStorage.setItem("conv-source", convSettings.source);
+  });
+}
+
 function showConvError(message) {
   els.convError.textContent = message;
   els.convError.classList.remove("hidden");
@@ -732,11 +786,18 @@ async function startConversation() {
   showQuestion(data.question);
 }
 
-// Sink de grabacion para la conversacion: manda el audio de la respuesta al servidor.
+// Sink de grabacion para la conversacion: manda el audio (y, en modo navegador, el texto
+// que transcribio el navegador) al servidor.
 async function sendConversationAnswer(wavBlob) {
   els.convError.classList.add("hidden");
+  const source = convSettings.source;
   const form = new FormData();
   form.append("audio", wavBlob, "answer.wav");
+  form.append("mode", source);
+  if (source === "browser") {
+    if (recognitionEnded) await recognitionEnded; // esperar la transcripcion final
+    form.append("transcript", browserTranscript.trim());
+  }
 
   let response;
   try {
@@ -758,7 +819,8 @@ async function sendConversationAnswer(wavBlob) {
   }
 
   const data = await response.json();
-  renderScoreCards(els.convTurnScores, data.turn_scores);
+  if (data.turn_scores) renderScoreCards(els.convTurnScores, data.turn_scores);
+  else els.convTurnScores.innerHTML = "";
   els.convRecognized.textContent = data.recognized_text || "(vacio)";
   els.convTurn.classList.remove("hidden");
 
@@ -784,25 +846,29 @@ els.convListen.addEventListener("click", () => speak(els.convQuestion.textConten
 els.convRecord.addEventListener("click", async () => {
   if (state === "idle") {
     recordSink = sendConversationAnswer;
+    if (convSettings.source === "browser") startBrowserRecognition();
     await startRecording();
     if (state === "recording") {
       els.convRecord.textContent = "Parar";
       els.convStatus.textContent = "Grabando... responde ahora.";
     } else {
-      // startRecording no arranco (permiso denegado, sin audio, etc.). El error ya
-      // quedo visible en convError via el enrutado de showError; solo falta que el
-      // boton y el estado no mientan sobre que se esta grabando.
+      // startRecording no arranco (permiso denegado, etc.). El error ya quedo visible
+      // en convError; solo falta que el boton/estado no mientan.
+      if (convSettings.source === "browser") stopBrowserRecognition();
       els.convRecord.textContent = "Responder";
       els.convStatus.textContent = "";
       recordSink = null;
     }
   } else if (state === "recording") {
     els.convRecord.textContent = "Responder";
-    // stopRecording() corre de forma sincrona hasta su primer await, asi que para
-    // cuando esta linea se ejecuta `state` ya refleja si el envio arranco
-    // ("sending") o si no hubo audio y se aborto ("idle" + error en convError).
+    if (convSettings.source === "browser") stopBrowserRecognition();
     const pending = stopRecording();
-    els.convStatus.textContent = state === "sending" ? "Evaluando..." : "";
+    if (state === "sending") {
+      els.convStatus.textContent =
+        convSettings.source === "browser" ? "Transcribiendo..." : "Evaluando con Azure...";
+    } else {
+      els.convStatus.textContent = "";
+    }
     await pending;
   }
 });
@@ -894,6 +960,7 @@ els.filters.addEventListener("click", (event) => {
 });
 
 initSettings();
+initConversationSettings();
 loadTexts();
 loadHistory();
 loadWordBank();

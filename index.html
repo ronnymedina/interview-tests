@@ -78,6 +78,15 @@
           <label for="conv-questions">Numero de preguntas (1-20)</label>
           <input id="conv-questions" type="number" min="1" max="20" value="5" />
 
+          <label for="conv-source">Fuente de transcripcion</label>
+          <select id="conv-source">
+            <option value="browser">Navegador (rapido, sin score por turno)</option>
+            <option value="azure">Azure (mas lento, con score por turno)</option>
+          </select>
+          <p id="conv-source-note" class="hint hidden">
+            Tu navegador no soporta reconocimiento de voz; se usara Azure.
+          </p>
+
           <div class="controls">
             <button id="conv-start" type="button">Empezar</button>
             <span id="conv-setup-error" class="error hidden"></span>
@@ -98,7 +107,7 @@
 
           <div id="conv-turn" class="hidden">
             <div id="conv-turn-scores" class="scores"></div>
-            <p class="hint">Lo que Azure escucho:</p>
+            <p class="hint">Lo que se escucho:</p>
             <p id="conv-recognized" class="recognized"></p>
           </div>
 
