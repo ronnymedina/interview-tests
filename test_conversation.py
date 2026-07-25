@@ -119,8 +119,8 @@ def test_final_returns_structured_practice_words():
     report = conversation.FeedbackReport(
         feedback="Bien hecho.",
         words=[
-            conversation.PracticeWord(word="worked", hint="-ed → /t/"),
-            conversation.PracticeWord(word="enjoyed", hint="-ed → /d/"),
+            conversation.PracticeWord(word="worked", present="work", hint="-ed → /t/"),
+            conversation.PracticeWord(word="task", hint="/tæsk/"),  # sin present
         ],
     )
     graph = conversation.build_graph(FakeLLM(["Q1", report]))
@@ -128,8 +128,8 @@ def test_final_returns_structured_practice_words():
     result = conversation.answer(conversation_id, "hi", graph=graph)
     assert result["final"]["content_feedback"] == "Bien hecho."
     assert result["final"]["practice_words"] == [
-        {"word": "worked", "hint": "-ed → /t/"},
-        {"word": "enjoyed", "hint": "-ed → /d/"},
+        {"word": "worked", "present": "work", "hint": "-ed → /t/"},
+        {"word": "task", "present": "", "hint": "/tæsk/"},
     ]
 
 

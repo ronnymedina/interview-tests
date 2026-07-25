@@ -37,8 +37,10 @@ _FEEDBACK_INSTRUCTION = (
     "The practice is over. Produce a FeedbackReport. In 'feedback', write brief feedback in "
     "Spanish (4-6 sentences) on the learner's English across the whole conversation: grammar, "
     "vocabulary and how to improve. In 'words', list up to 10 English words the learner should "
-    "practice (mispronounced or worth improving), each with a short pronunciation 'hint' "
-    "(e.g. '-ed -> /t/'); use an empty string for 'hint' when there is no useful cue."
+    "practice (mispronounced or worth improving). For each word: 'hint' is a short pronunciation "
+    "cue (e.g. '-ed -> /t/'), empty string if none; 'present' is the present/base form when the "
+    "word is a verb (especially a past-tense verb, e.g. 'work' for 'worked'), empty string when "
+    "it does not apply (nouns, etc.)."
 )
 
 
@@ -53,6 +55,10 @@ class ConversationError(Exception):
 class PracticeWord(BaseModel):
     word: str = Field(
         description="English word the learner should practice (mispronounced or recommended)"
+    )
+    present: str = Field(
+        default="",
+        description="Present/base form when the word is a verb (esp. past tense), e.g. 'work' for 'worked'. Empty string when it does not apply (nouns, etc.).",
     )
     hint: str = Field(
         description="Short pronunciation hint, e.g. '-ed -> /t/'. Empty string if none."
