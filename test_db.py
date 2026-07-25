@@ -69,3 +69,28 @@ def test_delete_text_cascades(temp_db):
     assert db.list_attempts() == []
     # Las palabras del intento tambien se borran.
     assert db.list_word_stats() == []
+
+
+def test_save_and_list_conversation(temp_db):
+    scores = {"pronunciation": 82.0, "accuracy": 85.0, "fluency": 80.0, "prosody": 78.0}
+    words = [
+        {"word": "Yesterday", "error_type": "None", "accuracy": 90.0, "phonemes": []},
+        {"word": "worked", "error_type": "Mispronunciation", "accuracy": 55.0, "phonemes": []},
+    ]
+    cid = db.save_conversation("Roleplay sobre trabajo", 3, scores, "Buen vocabulario.", words)
+    listed = db.list_conversations()
+    assert len(listed) == 1
+    assert listed[0]["id"] == cid
+    assert listed[0]["system_prompt"] == "Roleplay sobre trabajo"
+    assert listed[0]["questions_asked"] == 3
+    assert listed[0]["pronunciation_score"] == 82.0
+    assert listed[0]["content_feedback"] == "Buen vocabulario."
+
+
+def test_conversation_words_feed_word_bank(temp_db):
+    scores = {"pronunciation": 82.0, "accuracy": 85.0, "fluency": 80.0, "prosody": 78.0}
+    words = [{"word": "Yesterday", "error_type": "None", "accuracy": 90.0, "phonemes": []}]
+    db.save_conversation("Roleplay", 1, scores, "ok", words)
+    stats = db.list_word_stats()
+    assert [s["word"] for s in stats] == ["yesterday"]
+    assert stats[0]["avg_accuracy"] == 90.0
