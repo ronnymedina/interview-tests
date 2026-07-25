@@ -6,6 +6,15 @@ import config
 import db
 
 
+@pytest.fixture(autouse=True)
+def _clear_scoring():
+    import scoring
+
+    scoring._pending.clear()
+    yield
+    scoring._pending.clear()
+
+
 @pytest.fixture
 def temp_db(tmp_path, monkeypatch):
     """Apunta la BD a un archivo temporal y crea el esquema limpio."""
