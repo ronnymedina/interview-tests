@@ -500,3 +500,14 @@ button.small {
   width: 100%;
   box-sizing: border-box;
 }
+
+.practice-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.practice-word {
+  cursor: pointer;
+}

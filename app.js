@@ -54,6 +54,8 @@ const els = {
   convFinal: document.getElementById("conv-final"),
   convFinalScores: document.getElementById("conv-final-scores"),
   convFeedback: document.getElementById("conv-feedback"),
+  convPracticeWordsBlock: document.getElementById("conv-practice-words-block"),
+  convPracticeWords: document.getElementById("conv-practice-words"),
   convRestart: document.getElementById("conv-restart"),
 };
 
@@ -732,6 +734,23 @@ function renderScoreCards(container, scores) {
   }
 }
 
+// Renderiza las palabras a practicar como chips clickeables; cada click las reproduce
+// con el TTS del navegador (voz en-US). Oculta el bloque si no hay palabras.
+function renderPracticeWords(words) {
+  const list = words || [];
+  els.convPracticeWords.innerHTML = "";
+  els.convPracticeWordsBlock.classList.toggle("hidden", list.length === 0);
+  for (const item of list) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "practice-word";
+    chip.textContent = item.hint ? `${item.word}: ${item.hint}` : item.word;
+    chip.title = "Escuchar";
+    chip.addEventListener("click", () => speak(item.word));
+    els.convPracticeWords.appendChild(chip);
+  }
+}
+
 // Muestra una pregunta nueva: la escribe y la habla.
 function showQuestion(question) {
   els.convQuestion.textContent = question;
@@ -828,6 +847,7 @@ async function sendConversationAnswer(wavBlob) {
   if (data.final) {
     renderScoreCards(els.convFinalScores, data.final.scores);
     els.convFeedback.textContent = data.final.content_feedback;
+    renderPracticeWords(data.final.practice_words);
     els.convActive.classList.add("hidden");
     els.convFinal.classList.remove("hidden");
     conversationId = null;
