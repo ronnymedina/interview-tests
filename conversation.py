@@ -8,7 +8,6 @@ El turno del usuario (audio -> Azure -> texto reconocido) ocurre fuera del grafo
 endpoint HTTP; aqui solo entra el texto ya reconocido como mensaje humano.
 """
 
-import operator
 import uuid
 from typing import Annotated, TypedDict
 
@@ -52,8 +51,6 @@ class State(TypedDict):
     system_prompt: str
     max_questions: int
     questions_asked: int
-    per_turn_scores: Annotated[list[dict], operator.add]
-    per_turn_words: Annotated[list[dict], operator.add]
     content_feedback: str
     finished: bool
 
@@ -151,8 +148,6 @@ def start(system_prompt: str, max_questions: int, graph=None) -> tuple[str, str]
             "system_prompt": system_prompt,
             "max_questions": max_questions,
             "questions_asked": 0,
-            "per_turn_scores": [],
-            "per_turn_words": [],
             "content_feedback": "",
             "finished": False,
         },
@@ -170,61 +165,33 @@ def exists(conversation_id: str, graph=None) -> bool:
     return bool(graph.get_state(_config(conversation_id)).values)
 
 
-def answer(
-    conversation_id: str,
-    recognized_text: str,
-    turn_scores: dict,
-    turn_words: list[dict],
-    graph=None,
-) -> dict:
-    """Inyecta la respuesta del usuario y devuelve la siguiente pregunta o el resultado final."""
+def answer(conversation_id: str, recognized_text: str, graph=None) -> dict:
+    """Inyecta la respuesta del usuario y devuelve la siguiente pregunta o el resultado final.
+
+    El scoring de pronunciacion ya no vive en el grafo: se acumula aparte (scoring.py) y el
+    endpoint lo agrega al finalizar.
+    """
     graph = graph or _get_graph()
     cfg = _config(conversation_id)
 
-    # Conversacion desconocida (proceso reiniciado o id invalido): el checkpointer no tiene
-    # estado para ese thread_id.
+    # Conversacion desconocida (proceso reiniciado o id invalido).
     state_values = graph.get_state(cfg).values
     if not state_values:
         raise ConversationError("La conversacion no existe o expiro.", status=404)
 
-    # Conversacion ya finalizada: no re-invocar el grafo (evitaria una llamada extra a
-    # Gemini y un turno bogus en per_turn_scores/per_turn_words, ademas de un segundo
-    # guardado en la BD).
+    # Conversacion ya finalizada: no re-invocar el grafo (evitaria otra llamada a Gemini y
+    # un segundo guardado en la BD).
     if state_values.get("finished"):
         raise ConversationError("La conversacion ya termino.", status=409)
 
-    result = graph.invoke(
-        {
-            "messages": [HumanMessage(recognized_text)],
-            "per_turn_scores": [turn_scores],
-            "per_turn_words": list(turn_words),
-        },
-        cfg,
-    )
+    result = graph.invoke({"messages": [HumanMessage(recognized_text)]}, cfg)
 
     if result["finished"]:
         return {
             "final": {
-                "scores": aggregate_scores(result["per_turn_scores"]),
                 "content_feedback": result["content_feedback"],
                 "system_prompt": result["system_prompt"],
                 "questions_asked": result["questions_asked"],
-                "words": result["per_turn_words"],
             }
         }
     return {"question": result["messages"][-1].content}
-
-
-def aggregate_scores(per_turn_scores: list[dict]) -> dict:
-    """Promedia los scores de todos los turnos. Ignora None (ej. prosody no soportada)."""
-
-    def avg(key: str):
-        values = [s[key] for s in per_turn_scores if s.get(key) is not None]
-        return round(sum(values) / len(values), 1) if values else None
-
-    return {
-        "pronunciation": avg("pronunciation"),
-        "accuracy": avg("accuracy"),
-        "fluency": avg("fluency"),
-        "prosody": avg("prosody"),
-    }

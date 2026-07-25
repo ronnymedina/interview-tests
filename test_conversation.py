@@ -46,15 +46,6 @@ class BlockContentLLM:
         return AIMessage([{"type": "text", "text": text, "extras": {"signature": "x"}}])
 
 
-def _scores(pronunciation):
-    return {
-        "pronunciation": pronunciation,
-        "accuracy": pronunciation,
-        "fluency": pronunciation,
-        "prosody": pronunciation,
-    }
-
-
 def test_start_asks_first_question():
     graph = conversation.build_graph(FakeLLM(["What did you do yesterday?"]))
     conversation_id, question = conversation.start("Roleplay sobre trabajo", 2, graph=graph)
@@ -76,7 +67,7 @@ def test_block_content_is_flattened_to_string():
     graph = conversation.build_graph(BlockContentLLM(["Q1", "FEEDBACK"]))
     conversation_id, q1 = conversation.start("Roleplay", 1, graph=graph)
     assert q1 == "Q1"
-    result = conversation.answer(conversation_id, "hi", _scores(80.0), [], graph=graph)
+    result = conversation.answer(conversation_id, "hi", graph=graph)
     assert result["final"]["content_feedback"] == "FEEDBACK"
 
 
@@ -85,44 +76,35 @@ def test_full_flow_reaches_feedback():
     conversation_id, q1 = conversation.start("Roleplay", 2, graph=graph)
     assert q1 == "Q1"
 
-    r1 = conversation.answer(conversation_id, "answer one", _scores(80.0), [], graph=graph)
+    r1 = conversation.answer(conversation_id, "answer one", graph=graph)
     assert r1 == {"question": "Q2"}
 
-    r2 = conversation.answer(conversation_id, "answer two", _scores(90.0), [], graph=graph)
+    r2 = conversation.answer(conversation_id, "answer two", graph=graph)
     assert "final" in r2
     assert r2["final"]["content_feedback"] == "FEEDBACK"
     assert r2["final"]["questions_asked"] == 2
-    assert r2["final"]["scores"]["pronunciation"] == 85.0
     assert r2["final"]["system_prompt"] == "Roleplay"
-
-
-def test_words_accumulate_across_turns():
-    graph = conversation.build_graph(FakeLLM(["Q1", "FEEDBACK"]))
-    words_turn = [{"word": "hello", "error_type": "None", "accuracy": 90.0, "phonemes": []}]
-    conversation_id, _ = conversation.start("Roleplay", 1, graph=graph)
-    result = conversation.answer(conversation_id, "hello", _scores(90.0), words_turn, graph=graph)
-    assert result["final"]["words"] == words_turn
+    assert "scores" not in r2["final"]
 
 
 def test_answer_unknown_conversation_raises_404():
     graph = conversation.build_graph(FakeLLM([]))
     with pytest.raises(conversation.ConversationError) as error:
-        conversation.answer("does-not-exist", "hi", _scores(80.0), [], graph=graph)
+        conversation.answer("does-not-exist", "hi", graph=graph)
     assert error.value.status == 404
 
 
 def test_answer_after_finished_raises_409_and_does_not_reinvoke_graph():
     graph = conversation.build_graph(FakeLLM(["Q1", "Q2", "FEEDBACK"]))
     conversation_id, _ = conversation.start("Roleplay", 2, graph=graph)
-    conversation.answer(conversation_id, "answer one", _scores(80.0), [], graph=graph)
-    result = conversation.answer(conversation_id, "answer two", _scores(90.0), [], graph=graph)
+    conversation.answer(conversation_id, "answer one", graph=graph)
+    result = conversation.answer(conversation_id, "answer two", graph=graph)
     assert "final" in result
 
     # La conversacion ya termino: llamar answer() de nuevo no debe re-invocar el grafo
-    # (el FakeLLM no tiene mas respuestas: un re-invoke lanzaria IndexError) y debe
-    # devolver 409 en su lugar.
+    # (el FakeLLM no tiene mas respuestas) y debe devolver 409 en su lugar.
     with pytest.raises(conversation.ConversationError) as error:
-        conversation.answer(conversation_id, "answer three", _scores(70.0), [], graph=graph)
+        conversation.answer(conversation_id, "answer three", graph=graph)
     assert error.value.status == 409
 
 
