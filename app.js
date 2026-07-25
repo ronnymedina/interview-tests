@@ -746,12 +746,14 @@ async function sendConversationAnswer(wavBlob) {
     });
   } catch (err) {
     showConvError("No se pudo contactar al servidor: " + err.message);
+    els.convStatus.textContent = "";
     return;
   }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     showConvError(formatDetail(body.detail) || `El servidor respondio ${response.status}.`);
+    els.convStatus.textContent = "";
     return;
   }
 
@@ -766,9 +768,11 @@ async function sendConversationAnswer(wavBlob) {
     els.convActive.classList.add("hidden");
     els.convFinal.classList.remove("hidden");
     conversationId = null;
+    els.convStatus.textContent = "";
     loadWordBank();
   } else {
     showQuestion(data.next_question);
+    els.convStatus.textContent = "";
   }
 }
 
@@ -826,9 +830,13 @@ function switchView(name) {
 
   // Cambiar de pestana a mitad de una grabacion la cancela: si no, el audio
   // quedaria apuntando al sink equivocado (p.ej. conversacion grabando y luego
-  // "Parar" en practica mandaria ese audio a /assess).
-  if (state !== "idle") {
+  // "Parar" en practica mandaria ese audio a /assess). Solo una grabacion activa
+  // se cancela aqui: un envio en curso ("sending") se deja terminar solo, para que
+  // su `finally { setState("idle") }` no le pise el estado a una grabacion nueva
+  // que el usuario arranque mientras tanto.
+  if (state === "recording") {
     cancelRecording();
+    els.status.textContent = "";
     els.convRecord.textContent = "Responder";
     els.convStatus.textContent = "";
   }
