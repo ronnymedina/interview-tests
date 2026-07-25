@@ -503,11 +503,43 @@ button.small {
 
 .practice-words {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
 .practice-word {
-  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.word-audio {
+  padding: 0.2rem 0.6rem;
+  background: #fff;
+  color: #1d4ed8;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.word-audio:hover {
+  background: #eff6ff;
+}
+
+.practice-arrow {
+  opacity: 0.6;
+}
+
+.practice-hint {
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.audio-banner {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.3);
 }

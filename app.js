@@ -734,20 +734,43 @@ function renderScoreCards(container, scores) {
   }
 }
 
-// Renderiza las palabras a practicar como chips clickeables; cada click las reproduce
-// con el TTS del navegador (voz en-US). Oculta el bloque si no hay palabras.
+// Un boton que reproduce una forma de la palabra con el TTS del navegador (voz en-US).
+function makeWordButton(text) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "word-audio";
+  button.textContent = text;
+  button.title = "Escuchar";
+  button.addEventListener("click", () => speak(text));
+  return button;
+}
+
+// Renderiza las palabras a practicar. Cada verbo muestra "presente -> pasado" con ambas
+// formas escuchables por separado; las no-verbos van solas. Oculta el bloque si no hay nada.
 function renderPracticeWords(words) {
   const list = words || [];
   els.convPracticeWords.innerHTML = "";
   els.convPracticeWordsBlock.classList.toggle("hidden", list.length === 0);
   for (const item of list) {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "practice-word";
-    chip.textContent = item.hint ? `${item.word}: ${item.hint}` : item.word;
-    chip.title = "Escuchar";
-    chip.addEventListener("click", () => speak(item.word));
-    els.convPracticeWords.appendChild(chip);
+    const row = document.createElement("div");
+    row.className = "practice-word";
+
+    if (item.present) {
+      row.appendChild(makeWordButton(item.present));
+      const arrow = document.createElement("span");
+      arrow.className = "practice-arrow";
+      arrow.textContent = "→";
+      row.appendChild(arrow);
+    }
+    row.appendChild(makeWordButton(item.word));
+
+    if (item.hint) {
+      const hint = document.createElement("span");
+      hint.className = "practice-hint";
+      hint.textContent = item.hint;
+      row.appendChild(hint);
+    }
+    els.convPracticeWords.appendChild(row);
   }
 }
 
