@@ -58,10 +58,29 @@ class State(TypedDict):
     finished: bool
 
 
+def _content_text(message) -> str:
+    """Extrae el texto plano de un mensaje del LLM.
+
+    `AIMessage.content` de Gemini puede ser un string o una lista de bloques
+    (p.ej. [{"type": "text", "text": "..."}]). Normalizamos a string para que la pagina
+    y la BD nunca reciban un objeto (que se pintaria como "[object Object]").
+    """
+    content = message.content
+    if isinstance(content, str):
+        return content
+    parts = []
+    for block in content:
+        if isinstance(block, str):
+            parts.append(block)
+        elif isinstance(block, dict):
+            parts.append(block.get("text", ""))
+    return "".join(parts).strip()
+
+
 def build_graph(llm):
     """Construye y compila el grafo con un checkpointer en memoria.
 
-    `llm` es cualquier objeto con `.invoke(messages).content -> str`.
+    `llm` es cualquier objeto con `.invoke(messages).content` (string o lista de bloques).
     En cada invocacion corre exactamente un nodo (ask o finalize) y termina; el estado
     persiste por thread_id entre invocaciones.
     """
@@ -75,16 +94,16 @@ def build_graph(llm):
         # humano en `contents`. Agregamos el empujon solo para esta llamada (no se guarda).
         if not any(isinstance(m, HumanMessage) for m in messages):
             messages = messages + [HumanMessage(_KICKOFF)]
-        question = llm.invoke(messages).content
+        question = _content_text(llm.invoke(messages))
         return {
             "messages": [AIMessage(question)],
             "questions_asked": state["questions_asked"] + 1,
         }
 
     def finalize(state: State) -> dict:
-        feedback = llm.invoke(
-            state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)]
-        ).content
+        feedback = _content_text(
+            llm.invoke(state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)])
+        )
         return {"finished": True, "content_feedback": feedback}
 
     graph = StateGraph(State)

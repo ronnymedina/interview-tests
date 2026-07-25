@@ -32,6 +32,20 @@ class GeminiLikeLLM(FakeLLM):
         return super().invoke(messages)
 
 
+class BlockContentLLM:
+    """Doble que devuelve contenido en bloques, como a veces hace Gemini.
+
+    `AIMessage.content` puede ser [{"type": "text", "text": "..."}] en vez de un string.
+    """
+
+    def __init__(self, texts):
+        self._texts = list(texts)
+
+    def invoke(self, messages):
+        text = self._texts.pop(0)
+        return AIMessage([{"type": "text", "text": text, "extras": {"signature": "x"}}])
+
+
 def _scores(pronunciation):
     return {
         "pronunciation": pronunciation,
@@ -54,6 +68,16 @@ def test_first_ask_includes_human_turn_for_gemini():
     graph = conversation.build_graph(GeminiLikeLLM(["What did you do yesterday?"]))
     _, question = conversation.start("Roleplay sobre trabajo", 2, graph=graph)
     assert question == "What did you do yesterday?"
+
+
+def test_block_content_is_flattened_to_string():
+    # Reproduce el bug "[object Object]": Gemini puede devolver contenido en bloques.
+    # La pregunta y el feedback deben salir como strings planos.
+    graph = conversation.build_graph(BlockContentLLM(["Q1", "FEEDBACK"]))
+    conversation_id, q1 = conversation.start("Roleplay", 1, graph=graph)
+    assert q1 == "Q1"
+    result = conversation.answer(conversation_id, "hi", _scores(80.0), [], graph=graph)
+    assert result["final"]["content_feedback"] == "FEEDBACK"
 
 
 def test_full_flow_reaches_feedback():
