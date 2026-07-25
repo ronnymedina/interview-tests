@@ -12,6 +12,7 @@ from starlette.concurrency import run_in_threadpool
 import config
 import conversation
 import db
+import scoring
 import speech
 
 # Los estaticos se sirven con rutas explicitas y no montando la carpeta entera,
@@ -137,9 +138,13 @@ def conversation_start(payload: ConversationStartIn) -> dict:
 
 
 @app.post("/conversation/{conversation_id}/answer")
-async def conversation_answer(conversation_id: str, audio: UploadFile) -> JSONResponse:
-    # Chequeo barato del id ANTES de gastar la llamada paga a Azure: un id invalido o
-    # expirado no debe quemar una transcripcion antes de fallar con 404.
+async def conversation_answer(
+    conversation_id: str,
+    audio: UploadFile,
+    mode: str = Form("azure"),
+    transcript: str = Form(""),
+) -> JSONResponse:
+    # Chequeo barato del id antes de cualquier trabajo pesado.
     try:
         conversation_exists = await run_in_threadpool(conversation.exists, conversation_id)
     except conversation.ConversationError as error:
@@ -151,43 +156,44 @@ async def conversation_answer(conversation_id: str, audio: UploadFile) -> JSONRe
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="No llego audio.")
 
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp.write(audio_bytes)
-        wav_path = tmp.name
+    if mode == "browser":
+        # El texto lo transcribe el navegador; el audio se puntua en segundo plano.
+        recognized_text = transcript.strip()
+        if not recognized_text:
+            raise HTTPException(status_code=400, detail="No llego la transcripcion.")
+        scoring.enqueue(conversation_id, audio_bytes)
+        turn_scores = None
+    else:
+        # Modo azure: se evalua ahora para mostrar el score del turno; el resultado igual
+        # queda encolado para el agregado final.
+        future = scoring.enqueue(conversation_id, audio_bytes)
+        assessment = await run_in_threadpool(future.result)
+        if assessment is None:
+            raise HTTPException(
+                status_code=422,
+                detail="No se detecto voz en el audio. Revisa el microfono e intenta de nuevo.",
+            )
+        recognized_text = assessment["recognized_text"]
+        turn_scores = assessment["scores"]
 
     try:
-        assessment = await run_in_threadpool(speech.assess_unscripted, wav_path)
-    except speech.SpeechError as error:
-        raise HTTPException(status_code=error.status, detail=str(error))
-    finally:
-        os.unlink(wav_path)
-
-    try:
-        result = await run_in_threadpool(
-            conversation.answer,
-            conversation_id,
-            assessment["recognized_text"],
-            assessment["scores"],
-            assessment["words"],
-        )
+        result = await run_in_threadpool(conversation.answer, conversation_id, recognized_text)
     except conversation.ConversationError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
 
-    response = {
-        "recognized_text": assessment["recognized_text"],
-        "turn_scores": assessment["scores"],
-        "words": assessment["words"],
-    }
+    response = {"recognized_text": recognized_text, "turn_scores": turn_scores}
     if "final" in result:
         final = result["final"]
+        scored = await run_in_threadpool(scoring.collect, conversation_id)
+        scores, words = scoring.aggregate(scored)
         db.save_conversation(
             final["system_prompt"],
             final["questions_asked"],
-            final["scores"],
+            scores,
             final["content_feedback"],
-            final["words"],
+            words,
         )
-        response["final"] = final
+        response["final"] = {"scores": scores, "content_feedback": final["content_feedback"]}
     else:
         response["next_question"] = result["question"]
     return JSONResponse(response)

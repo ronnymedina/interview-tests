@@ -104,50 +104,78 @@ def test_conversation_start_bad_max_rejected(client):
     assert resp.status_code == 400
 
 
-def test_conversation_answer_intermediate(client, monkeypatch):
+def test_conversation_answer_azure_shows_turn_scores(client, monkeypatch):
     monkeypatch.setattr(conversation, "exists", lambda cid: True)
     monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
-    monkeypatch.setattr(
-        conversation, "answer",
-        lambda cid, text, scores, words: {"question": "Next question?"},
-    )
+    monkeypatch.setattr(conversation, "answer", lambda cid, text: {"question": "Next question?"})
     resp = client.post(
         "/conversation/cid-1/answer",
+        data={"mode": "azure"},
         files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["next_question"] == "Next question?"
     assert body["recognized_text"] == "hello world"
-    assert body["turn_scores"]["completeness"] is None
+    # En modo azure el score del turno esta presente.
+    assert body["turn_scores"]["pronunciation"] == 85.0
 
 
-def test_conversation_answer_final_is_saved(client, monkeypatch):
+def test_conversation_answer_browser_defers_scoring(client, monkeypatch):
+    monkeypatch.setattr(conversation, "exists", lambda cid: True)
+    monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
+    monkeypatch.setattr(conversation, "answer", lambda cid, text: {"question": "Next?"})
+    resp = client.post(
+        "/conversation/cid-1/answer",
+        data={"mode": "browser", "transcript": "I went to work"},
+        files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["next_question"] == "Next?"
+    # El texto viene del cliente; no hay score por turno (diferido).
+    assert body["recognized_text"] == "I went to work"
+    assert body["turn_scores"] is None
+
+
+def test_conversation_answer_browser_without_transcript_rejected(client, monkeypatch):
+    monkeypatch.setattr(conversation, "exists", lambda cid: True)
+    resp = client.post(
+        "/conversation/cid-1/answer",
+        data={"mode": "browser", "transcript": "   "},
+        files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
+    )
+    assert resp.status_code == 400
+
+
+def test_conversation_answer_final_aggregates_and_saves(client, monkeypatch):
     monkeypatch.setattr(conversation, "exists", lambda cid: True)
     monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
     final_payload = {
         "final": {
-            "scores": {"pronunciation": 84.0, "accuracy": 88.0, "fluency": 80.0, "prosody": 70.0},
             "content_feedback": "Buen intento.",
             "system_prompt": "Roleplay",
-            "questions_asked": 2,
-            "words": [{"word": "hello", "error_type": "None", "accuracy": 95.0, "phonemes": []}],
+            "questions_asked": 1,
         }
     }
-    monkeypatch.setattr(conversation, "answer", lambda cid, text, scores, words: final_payload)
+    monkeypatch.setattr(conversation, "answer", lambda cid, text: final_payload)
 
     resp = client.post(
-        "/conversation/cid-1/answer",
+        "/conversation/cid-final/answer",
+        data={"mode": "azure"},
         files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
     )
     assert resp.status_code == 200
-    assert resp.json()["final"]["content_feedback"] == "Buen intento."
+    body = resp.json()
+    assert body["final"]["content_feedback"] == "Buen intento."
+    # Los scores del final salen del agregado del scoring encolado.
+    assert body["final"]["scores"]["pronunciation"] == 85.0
 
     saved = db.list_conversations()
     assert len(saved) == 1
     assert saved[0]["system_prompt"] == "Roleplay"
-    assert saved[0]["pronunciation_score"] == 84.0
-    # Las palabras alimentaron el banco.
+    assert saved[0]["pronunciation_score"] == 85.0
+    # Las palabras del scoring alimentaron el banco.
     assert [s["word"] for s in db.list_word_stats()] == ["hello"]
 
 
