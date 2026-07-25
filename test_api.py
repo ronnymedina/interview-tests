@@ -105,6 +105,7 @@ def test_conversation_start_bad_max_rejected(client):
 
 
 def test_conversation_answer_intermediate(client, monkeypatch):
+    monkeypatch.setattr(conversation, "exists", lambda cid: True)
     monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
     monkeypatch.setattr(
         conversation, "answer",
@@ -122,6 +123,7 @@ def test_conversation_answer_intermediate(client, monkeypatch):
 
 
 def test_conversation_answer_final_is_saved(client, monkeypatch):
+    monkeypatch.setattr(conversation, "exists", lambda cid: True)
     monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
     final_payload = {
         "final": {
@@ -147,3 +149,17 @@ def test_conversation_answer_final_is_saved(client, monkeypatch):
     assert saved[0]["pronunciation_score"] == 84.0
     # Las palabras alimentaron el banco.
     assert [s["word"] for s in db.list_word_stats()] == ["hello"]
+
+
+def test_conversation_answer_unknown_id_returns_404(client, monkeypatch):
+    # exists() debe cortar ANTES de gastar la llamada paga a Azure: si assess_unscripted
+    # llegara a invocarse igual lo dejamos pasar de forma defensiva, pero lo que probamos
+    # es que la respuesta es 404 sin depender de su resultado.
+    monkeypatch.setattr(conversation, "exists", lambda cid: False)
+    monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
+
+    resp = client.post(
+        "/conversation/does-not-exist/answer",
+        files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
+    )
+    assert resp.status_code == 404

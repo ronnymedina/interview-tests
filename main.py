@@ -138,6 +138,15 @@ def conversation_start(payload: ConversationStartIn) -> dict:
 
 @app.post("/conversation/{conversation_id}/answer")
 async def conversation_answer(conversation_id: str, audio: UploadFile) -> JSONResponse:
+    # Chequeo barato del id ANTES de gastar la llamada paga a Azure: un id invalido o
+    # expirado no debe quemar una transcripcion antes de fallar con 404.
+    try:
+        conversation_exists = await run_in_threadpool(conversation.exists, conversation_id)
+    except conversation.ConversationError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+    if not conversation_exists:
+        raise HTTPException(status_code=404, detail="La conversacion no existe o expiro.")
+
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="No llego audio.")

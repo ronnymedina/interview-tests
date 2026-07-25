@@ -137,6 +137,20 @@ def test_unscripted_mispronunciation_below_60():
     assert result["words"][0]["error_type"] == "Mispronunciation"
 
 
+def test_unscripted_with_prosody_averages_and_scores():
+    # Con prosody, el overall usa la rama de 3 dimensiones (accuracy, fluency, prosody).
+    state = make_state(
+        [rec_word("hello", 90.0), rec_word("world", 80.0)],
+        ["hello world"],
+        durations=[500000, 400000],
+        end=1_000_000,
+        prosody=[70.0, 90.0],
+    )
+    result = speech.assess_unscripted("a.wav", client=FakeClient(state))
+    assert result["scores"]["prosody"] == 80.0
+    assert result["scores"]["pronunciation"] is not None
+
+
 def test_unscripted_no_speech_raises_422():
     with pytest.raises(speech.SpeechError) as error:
         speech.assess_unscripted("a.wav", client=FakeClient(make_state([], [])))

@@ -132,6 +132,15 @@ def start(system_prompt: str, max_questions: int, graph=None) -> tuple[str, str]
     return conversation_id, result["messages"][-1].content
 
 
+def exists(conversation_id: str, graph=None) -> bool:
+    """Chequeo barato de si el id de conversacion es valido, sin invocar el grafo.
+
+    Pensado para validar el id ANTES de gastar una llamada paga a Azure en el endpoint.
+    """
+    graph = graph or _get_graph()
+    return bool(graph.get_state(_config(conversation_id)).values)
+
+
 def answer(
     conversation_id: str,
     recognized_text: str,
@@ -145,8 +154,15 @@ def answer(
 
     # Conversacion desconocida (proceso reiniciado o id invalido): el checkpointer no tiene
     # estado para ese thread_id.
-    if not graph.get_state(cfg).values:
+    state_values = graph.get_state(cfg).values
+    if not state_values:
         raise ConversationError("La conversacion no existe o expiro.", status=404)
+
+    # Conversacion ya finalizada: no re-invocar el grafo (evitaria una llamada extra a
+    # Gemini y un turno bogus en per_turn_scores/per_turn_words, ademas de un segundo
+    # guardado en la BD).
+    if state_values.get("finished"):
+        raise ConversationError("La conversacion ya termino.", status=409)
 
     result = graph.invoke(
         {

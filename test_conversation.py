@@ -66,6 +66,21 @@ def test_answer_unknown_conversation_raises_404():
     assert error.value.status == 404
 
 
+def test_answer_after_finished_raises_409_and_does_not_reinvoke_graph():
+    graph = conversation.build_graph(FakeLLM(["Q1", "Q2", "FEEDBACK"]))
+    conversation_id, _ = conversation.start("Roleplay", 2, graph=graph)
+    conversation.answer(conversation_id, "answer one", _scores(80.0), [], graph=graph)
+    result = conversation.answer(conversation_id, "answer two", _scores(90.0), [], graph=graph)
+    assert "final" in result
+
+    # La conversacion ya termino: llamar answer() de nuevo no debe re-invocar el grafo
+    # (el FakeLLM no tiene mas respuestas: un re-invoke lanzaria IndexError) y debe
+    # devolver 409 en su lugar.
+    with pytest.raises(conversation.ConversationError) as error:
+        conversation.answer(conversation_id, "answer three", _scores(70.0), [], graph=graph)
+    assert error.value.status == 409
+
+
 def test_start_without_api_key_raises_500(monkeypatch):
     """Sin GEMINI_API_KEY, _get_graph() debe fallar con 500 al construir el grafo real."""
     monkeypatch.setattr(config, "GEMINI_API_KEY", "")
