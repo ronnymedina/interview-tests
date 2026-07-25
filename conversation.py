@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemM
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel, Field
 
 import config
 
@@ -33,8 +34,11 @@ _KICKOFF = "Let's begin. Ask me your first question."
 
 # Instruccion para el feedback final de contenido.
 _FEEDBACK_INSTRUCTION = (
-    "The practice is over. In Spanish, give the learner brief feedback (4-6 sentences) on "
-    "their English across the whole conversation: grammar, vocabulary and how to improve."
+    "The practice is over. Produce a FeedbackReport. In 'feedback', write brief feedback in "
+    "Spanish (4-6 sentences) on the learner's English across the whole conversation: grammar, "
+    "vocabulary and how to improve. In 'words', list up to 10 English words the learner should "
+    "practice (mispronounced or worth improving), each with a short pronunciation 'hint' "
+    "(e.g. '-ed -> /t/'); use an empty string for 'hint' when there is no useful cue."
 )
 
 
@@ -46,12 +50,32 @@ class ConversationError(Exception):
         self.status = status
 
 
+class PracticeWord(BaseModel):
+    word: str = Field(
+        description="English word the learner should practice (mispronounced or recommended)"
+    )
+    hint: str = Field(
+        description="Short pronunciation hint, e.g. '-ed -> /t/'. Empty string if none."
+    )
+
+
+class FeedbackReport(BaseModel):
+    feedback: str = Field(
+        description="Brief feedback in Spanish, 4-6 sentences, on grammar, vocabulary and how to improve"
+    )
+    words: list[PracticeWord] = Field(
+        default_factory=list,
+        description="Up to 10 words to practice, each with a pronunciation hint",
+    )
+
+
 class State(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     system_prompt: str
     max_questions: int
     questions_asked: int
     content_feedback: str
+    practice_words: list[dict]
     finished: bool
 
 
@@ -98,10 +122,14 @@ def build_graph(llm):
         }
 
     def finalize(state: State) -> dict:
-        feedback = _content_text(
-            llm.invoke(state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)])
+        report = llm.with_structured_output(FeedbackReport).invoke(
+            state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)]
         )
-        return {"finished": True, "content_feedback": feedback}
+        return {
+            "finished": True,
+            "content_feedback": report.feedback,
+            "practice_words": [word.model_dump() for word in report.words],
+        }
 
     graph = StateGraph(State)
     graph.add_node("ask", ask)
@@ -149,6 +177,7 @@ def start(system_prompt: str, max_questions: int, graph=None) -> tuple[str, str]
             "max_questions": max_questions,
             "questions_asked": 0,
             "content_feedback": "",
+            "practice_words": [],
             "finished": False,
         },
         _config(conversation_id),
@@ -192,6 +221,7 @@ def answer(conversation_id: str, recognized_text: str, graph=None) -> dict:
                 "content_feedback": result["content_feedback"],
                 "system_prompt": result["system_prompt"],
                 "questions_asked": result["questions_asked"],
+                "practice_words": result["practice_words"],
             }
         }
     return {"question": result["messages"][-1].content}

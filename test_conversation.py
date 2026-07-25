@@ -18,6 +18,9 @@ class FakeLLM:
         self.calls.append(messages)
         return AIMessage(self._replies.pop(0))
 
+    def with_structured_output(self, schema):
+        return _StructuredFake(self._replies, schema)
+
 
 class GeminiLikeLLM(FakeLLM):
     """Como FakeLLM pero exige al menos un turno humano, igual que Gemini.
@@ -38,12 +41,36 @@ class BlockContentLLM:
     `AIMessage.content` puede ser [{"type": "text", "text": "..."}] en vez de un string.
     """
 
-    def __init__(self, texts):
-        self._texts = list(texts)
+    def __init__(self, replies):
+        self._replies = list(replies)
 
     def invoke(self, messages):
-        text = self._texts.pop(0)
+        text = self._replies.pop(0)
         return AIMessage([{"type": "text", "text": text, "extras": {"signature": "x"}}])
+
+    def with_structured_output(self, schema):
+        return _StructuredFake(self._replies, schema)
+
+
+class _StructuredFake:
+    """Doble de llm.with_structured_output: coerce el siguiente reply al schema.
+
+    string  -> schema(feedback=<str>, words=[])   (compat con tests que pasan texto)
+    dict    -> schema(**reply)
+    schema  -> tal cual
+    """
+
+    def __init__(self, replies, schema):
+        self._replies = replies
+        self._schema = schema
+
+    def invoke(self, messages):
+        reply = self._replies.pop(0)
+        if isinstance(reply, self._schema):
+            return reply
+        if isinstance(reply, dict):
+            return self._schema(**reply)
+        return self._schema(feedback=str(reply), words=[])
 
 
 def test_start_asks_first_question():
@@ -85,6 +112,25 @@ def test_full_flow_reaches_feedback():
     assert r2["final"]["questions_asked"] == 2
     assert r2["final"]["system_prompt"] == "Roleplay"
     assert "scores" not in r2["final"]
+    assert r2["final"]["practice_words"] == []
+
+
+def test_final_returns_structured_practice_words():
+    report = conversation.FeedbackReport(
+        feedback="Bien hecho.",
+        words=[
+            conversation.PracticeWord(word="worked", hint="-ed → /t/"),
+            conversation.PracticeWord(word="enjoyed", hint="-ed → /d/"),
+        ],
+    )
+    graph = conversation.build_graph(FakeLLM(["Q1", report]))
+    conversation_id, _ = conversation.start("Roleplay", 1, graph=graph)
+    result = conversation.answer(conversation_id, "hi", graph=graph)
+    assert result["final"]["content_feedback"] == "Bien hecho."
+    assert result["final"]["practice_words"] == [
+        {"word": "worked", "hint": "-ed → /t/"},
+        {"word": "enjoyed", "hint": "-ed → /d/"},
+    ]
 
 
 def test_answer_unknown_conversation_raises_404():
