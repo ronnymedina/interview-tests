@@ -485,3 +485,29 @@ button.small {
   font-size: 0.8rem;
   margin-right: 0.35rem;
 }
+
+#conv-setup textarea,
+#conv-setup input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#conv-question {
+  min-height: 1.5em;
+}
+
+#conv-source {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.practice-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.practice-word {
+  cursor: pointer;
+}

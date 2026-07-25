@@ -12,6 +12,7 @@
 
       <nav class="menu">
         <button type="button" data-view="practice" class="active">Practicar</button>
+        <button type="button" data-view="conversation">Conversacion</button>
         <button type="button" data-view="texts">Textos</button>
         <button type="button" data-view="words">Banco de palabras</button>
         <button type="button" data-view="history">Historial</button>
@@ -59,6 +60,75 @@
           <h2>Lo que Azure escucho</h2>
           <p id="recognized" class="recognized"></p>
         </section>
+      </section>
+
+      <!-- Vista: conversacion con el LLM -->
+      <section id="view-conversation" class="view hidden">
+        <p class="sub">
+          Define un escenario, el asistente te hara preguntas en ingles (las escuchas y las
+          lees), tu respondes hablando y al final ves tu pronunciacion y un feedback.
+        </p>
+
+        <!-- Configuracion inicial -->
+        <div id="conv-setup">
+          <label for="conv-prompt">Escenario (system prompt)</label>
+          <textarea id="conv-prompt" rows="4"
+            placeholder="Hazme preguntas en ingles sobre mi experiencia de trabajo, en pasado."></textarea>
+
+          <label for="conv-questions">Numero de preguntas (1-20)</label>
+          <input id="conv-questions" type="number" min="1" max="20" value="5" />
+
+          <label for="conv-source">Fuente de transcripcion</label>
+          <select id="conv-source">
+            <option value="browser">Navegador (rapido, sin score por turno)</option>
+            <option value="azure">Azure (mas lento, con score por turno)</option>
+          </select>
+          <p id="conv-source-note" class="hint hidden">
+            Tu navegador no soporta reconocimiento de voz; se usara Azure.
+          </p>
+
+          <div class="controls">
+            <button id="conv-start" type="button">Empezar</button>
+            <span id="conv-setup-error" class="error hidden"></span>
+          </div>
+        </div>
+
+        <!-- Conversacion en curso -->
+        <div id="conv-active" class="hidden">
+          <div class="reference-block">
+            <button id="conv-listen" type="button" class="secondary small">🔊 Repetir</button>
+            <p id="conv-question" class="reference-text"></p>
+          </div>
+
+          <div class="controls">
+            <button id="conv-record" type="button">Responder</button>
+            <span id="conv-status" class="status"></span>
+          </div>
+
+          <div id="conv-turn" class="hidden">
+            <div id="conv-turn-scores" class="scores"></div>
+            <p class="hint">Lo que se escucho:</p>
+            <p id="conv-recognized" class="recognized"></p>
+          </div>
+
+          <div id="conv-error" class="error hidden"></div>
+        </div>
+
+        <!-- Resultado final -->
+        <div id="conv-final" class="hidden">
+          <h2>Resultado de la conversacion</h2>
+          <div id="conv-final-scores" class="scores"></div>
+          <h2>Feedback</h2>
+          <p id="conv-feedback" class="recognized"></p>
+          <div id="conv-practice-words-block" class="hidden">
+            <h2>Palabras para practicar</h2>
+            <p class="hint">Haz clic en una palabra para escucharla.</p>
+            <div id="conv-practice-words" class="practice-words"></div>
+          </div>
+          <div class="controls">
+            <button id="conv-restart" type="button">Nueva conversacion</button>
+          </div>
+        </div>
       </section>
 
       <!-- Vista: textos guardados -->

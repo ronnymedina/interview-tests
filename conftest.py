@@ -6,6 +6,15 @@ import config
 import db
 
 
+@pytest.fixture(autouse=True)
+def _clear_scoring():
+    import scoring
+
+    scoring._pending.clear()
+    yield
+    scoring._pending.clear()
+
+
 @pytest.fixture
 def temp_db(tmp_path, monkeypatch):
     """Apunta la BD a un archivo temporal y crea el esquema limpio."""
@@ -42,4 +51,21 @@ def make_result(words=None, pronunciation=90.0):
             "prosody": 70.0,
         },
         "words": words,
+    }
+
+
+def make_unscripted_result(recognized="hello world", pronunciation=85.0):
+    """Un result de speech.assess_unscripted() minimo (sin completeness)."""
+    return {
+        "recognized_text": recognized,
+        "scores": {
+            "pronunciation": pronunciation,
+            "accuracy": 88.0,
+            "fluency": 80.0,
+            "completeness": None,
+            "prosody": 70.0,
+        },
+        "words": [
+            {"word": "hello", "error_type": "None", "accuracy": 95.0, "phonemes": []},
+        ],
     }

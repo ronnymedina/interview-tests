@@ -31,17 +31,31 @@ CREATE TABLE IF NOT EXISTS attempts (
     result_json         TEXT NOT NULL
 );
 
--- Una fila por cada palabra de cada intento, para poder ver el historial por palabra
--- (que palabras mejoras y cuales fallas) agregado entre todos los intentos.
+-- Una fila por palabra, tanto de intentos de lectura como de conversaciones, para el
+-- historial por palabra agregado entre todas las practicas.
 CREATE TABLE IF NOT EXISTS word_scores (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    attempt_id  INTEGER NOT NULL,
-    created_at  TEXT NOT NULL,
-    word        TEXT NOT NULL,   -- en minuscula, para agrupar
-    accuracy    REAL,            -- NULL si la palabra se omitio (no se pronuncio)
-    error_type  TEXT NOT NULL
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    attempt_id      INTEGER,         -- set en intentos de lectura; NULL en conversaciones
+    conversation_id INTEGER,         -- set en conversaciones; NULL en intentos
+    created_at      TEXT NOT NULL,
+    word            TEXT NOT NULL,   -- en minuscula, para agrupar
+    accuracy        REAL,            -- NULL si la palabra se omitio (no se pronuncio)
+    error_type      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_word_scores_word ON word_scores (word);
+
+-- Resultado final de cada conversacion (no se guarda el turno-a-turno).
+CREATE TABLE IF NOT EXISTS conversations (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at          TEXT NOT NULL,
+    system_prompt       TEXT NOT NULL,
+    questions_asked     INTEGER NOT NULL,
+    pronunciation_score REAL,
+    accuracy_score      REAL,
+    fluency_score       REAL,
+    prosody_score       REAL,
+    content_feedback    TEXT NOT NULL
+);
 """
 
 
@@ -68,6 +82,16 @@ def _drop_legacy_tables(conn: sqlite3.Connection) -> None:
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(attempts)")}
     if "text_id" not in columns:
         conn.executescript("DROP TABLE IF EXISTS word_scores; DROP TABLE IF EXISTS attempts;")
+
+    # word_scores gano la columna conversation_id: si existe una version vieja sin ella,
+    # se descarta y se recrea (se pierde el historial por palabra, no hay migracion).
+    ws_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'word_scores'"
+    ).fetchone()
+    if ws_exists:
+        ws_columns = {row["name"] for row in conn.execute("PRAGMA table_info(word_scores)")}
+        if "conversation_id" not in ws_columns:
+            conn.executescript("DROP TABLE IF EXISTS word_scores;")
 
 
 # --- textos guardados --------------------------------------------------------
@@ -169,27 +193,92 @@ def save_attempt(text_id: int, result: dict) -> int:
             ),
         )
         attempt_id = cursor.lastrowid or 0
-        _save_words(conn, attempt_id, now, result["words"])
+        _save_words(conn, now, result["words"], attempt_id=attempt_id)
         return attempt_id
 
 
-def _save_words(conn, attempt_id: int, created_at: str, words: list[dict]) -> None:
-    """Guarda cada palabra del intento en word_scores para el banco de palabras.
+def _save_words(
+    conn,
+    created_at: str,
+    words: list[dict],
+    *,
+    attempt_id: int | None = None,
+    conversation_id: int | None = None,
+) -> None:
+    """Guarda cada palabra en word_scores para el banco de palabras.
 
-    Las inserciones (palabras dichas que no estaban en la lectura) se ignoran: no son
-    vocabulario a mejorar. Las omisiones se guardan con accuracy NULL (no se pronuncio).
+    Se usa tanto para intentos de lectura (`attempt_id`) como para conversaciones
+    (`conversation_id`); exactamente uno de los dos viene informado. Las inserciones
+    (palabras dichas que no tocaban) se ignoran; las omisiones se guardan con accuracy NULL.
     """
     rows = []
     for word in words:
         if word["error_type"] == "Insertion":
             continue
         accuracy = None if word["error_type"] == "Omission" else word["accuracy"]
-        rows.append((attempt_id, created_at, word["word"].lower(), accuracy, word["error_type"]))
+        rows.append(
+            (attempt_id, conversation_id, created_at, word["word"].lower(), accuracy, word["error_type"])
+        )
     conn.executemany(
-        "INSERT INTO word_scores (attempt_id, created_at, word, accuracy, error_type) "
-        "VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO word_scores (attempt_id, conversation_id, created_at, word, accuracy, error_type) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
         rows,
     )
+
+
+def save_conversation(
+    system_prompt: str,
+    questions_asked: int,
+    scores: dict,
+    content_feedback: str,
+    words: list[dict],
+) -> int:
+    """Guarda el resultado final de una conversacion y alimenta el banco de palabras.
+
+    `scores` trae pronunciation/accuracy/fluency/prosody agregados; `words` es la lista
+    acumulada de todas las respuestas del usuario (mismo shape que result["words"]).
+    """
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO conversations (
+                created_at, system_prompt, questions_asked,
+                pronunciation_score, accuracy_score, fluency_score,
+                prosody_score, content_feedback
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                now,
+                system_prompt,
+                questions_asked,
+                scores["pronunciation"],
+                scores["accuracy"],
+                scores["fluency"],
+                scores["prosody"],
+                content_feedback,
+            ),
+        )
+        conversation_id = cursor.lastrowid or 0
+        _save_words(conn, now, words, conversation_id=conversation_id)
+        return conversation_id
+
+
+def list_conversations(limit: int = 20) -> list[dict]:
+    """Cabeceras de las ultimas conversaciones guardadas."""
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, created_at, system_prompt, questions_asked,
+                   pronunciation_score, accuracy_score, fluency_score,
+                   prosody_score, content_feedback
+            FROM conversations
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
 
 def list_attempts(limit: int = 20) -> list[dict]:
