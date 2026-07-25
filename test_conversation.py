@@ -3,6 +3,7 @@
 import pytest
 from langchain_core.messages import AIMessage
 
+import config
 import conversation
 
 
@@ -47,6 +48,7 @@ def test_full_flow_reaches_feedback():
     assert r2["final"]["content_feedback"] == "FEEDBACK"
     assert r2["final"]["questions_asked"] == 2
     assert r2["final"]["scores"]["pronunciation"] == 85.0
+    assert r2["final"]["system_prompt"] == "Roleplay"
 
 
 def test_words_accumulate_across_turns():
@@ -62,3 +64,14 @@ def test_answer_unknown_conversation_raises_404():
     with pytest.raises(conversation.ConversationError) as error:
         conversation.answer("does-not-exist", "hi", _scores(80.0), [], graph=graph)
     assert error.value.status == 404
+
+
+def test_start_without_api_key_raises_500(monkeypatch):
+    """Sin GEMINI_API_KEY, _get_graph() debe fallar con 500 al construir el grafo real."""
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "")
+    monkeypatch.setattr(conversation, "_graph", None)
+
+    with pytest.raises(conversation.ConversationError) as error:
+        conversation.start("Roleplay", 2)
+
+    assert error.value.status == 500

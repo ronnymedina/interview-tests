@@ -50,6 +50,7 @@ class State(TypedDict):
     per_turn_scores: Annotated[list[dict], operator.add]
     per_turn_words: Annotated[list[dict], operator.add]
     content_feedback: str
+    finished: bool
 
 
 def build_graph(llm):
@@ -74,7 +75,7 @@ def build_graph(llm):
         feedback = llm.invoke(
             state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)]
         ).content
-        return {"content_feedback": feedback}
+        return {"finished": True, "content_feedback": feedback}
 
     graph = StateGraph(State)
     graph.add_node("ask", ask)
@@ -124,6 +125,7 @@ def start(system_prompt: str, max_questions: int, graph=None) -> tuple[str, str]
             "per_turn_scores": [],
             "per_turn_words": [],
             "content_feedback": "",
+            "finished": False,
         },
         _config(conversation_id),
     )
@@ -155,7 +157,7 @@ def answer(
         cfg,
     )
 
-    if result["content_feedback"]:
+    if result["finished"]:
         return {
             "final": {
                 "scores": aggregate_scores(result["per_turn_scores"]),
