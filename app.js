@@ -35,6 +35,24 @@ const els = {
   menu: document.querySelector(".menu"),
   views: document.querySelectorAll(".view"),
   filters: document.querySelector(".filters"),
+  convSetup: document.getElementById("conv-setup"),
+  convPrompt: document.getElementById("conv-prompt"),
+  convQuestions: document.getElementById("conv-questions"),
+  convStart: document.getElementById("conv-start"),
+  convSetupError: document.getElementById("conv-setup-error"),
+  convActive: document.getElementById("conv-active"),
+  convListen: document.getElementById("conv-listen"),
+  convQuestion: document.getElementById("conv-question"),
+  convRecord: document.getElementById("conv-record"),
+  convStatus: document.getElementById("conv-status"),
+  convTurn: document.getElementById("conv-turn"),
+  convTurnScores: document.getElementById("conv-turn-scores"),
+  convRecognized: document.getElementById("conv-recognized"),
+  convError: document.getElementById("conv-error"),
+  convFinal: document.getElementById("conv-final"),
+  convFinalScores: document.getElementById("conv-final-scores"),
+  convFeedback: document.getElementById("conv-feedback"),
+  convRestart: document.getElementById("conv-restart"),
 };
 
 // Ultimos textos cargados, para poblar el selector de practica y la tabla de gestion.
@@ -47,6 +65,10 @@ const ttsSettings = {
 };
 
 let state = "idle"; // idle | recording | sending
+
+// A donde va el audio al parar de grabar. Por defecto, la evaluacion de un texto.
+// La vista de conversacion lo cambia a su propio manejador.
+let recordSink = null;
 
 // Recursos de la grabacion en curso.
 let audioContext = null;
@@ -113,7 +135,7 @@ function initSettings() {
 
 async function startRecording() {
   clearError();
-  if (!els.textSelect.value) {
+  if (!recordSink && !els.textSelect.value) {
     showError("Elige primero un texto para practicar.");
     return;
   }
@@ -177,7 +199,9 @@ async function stopRecording() {
 
   setState("sending");
   try {
-    await sendForAssessment(encodeWav(recorded, sampleRate));
+    const wavBlob = encodeWav(recorded, sampleRate);
+    if (recordSink) await recordSink(wavBlob);
+    else await sendForAssessment(wavBlob);
   } finally {
     setState("idle");
   }
@@ -633,6 +657,139 @@ function clearError() {
   els.error.classList.add("hidden");
 }
 
+// --- conversacion ------------------------------------------------------------
+
+let conversationId = null;
+
+function showConvError(message) {
+  els.convError.textContent = message;
+  els.convError.classList.remove("hidden");
+}
+
+// Pinta un set de scores (mismo formato que la practica) en un contenedor dado.
+function renderScoreCards(container, scores) {
+  container.innerHTML = "";
+  for (const [key, label] of Object.entries(SCORE_LABELS)) {
+    const value = scores[key];
+    if (value === null || value === undefined) continue;
+    const card = document.createElement("div");
+    card.className = `card ${scoreClass(value)}`;
+    card.innerHTML = `<span class="value">${formatScore(value)}</span><span class="label">${label}</span>`;
+    container.appendChild(card);
+  }
+}
+
+// Muestra una pregunta nueva: la escribe y la habla.
+function showQuestion(question) {
+  els.convQuestion.textContent = question;
+  els.convTurn.classList.add("hidden");
+  speak(question);
+}
+
+async function startConversation() {
+  els.convSetupError.classList.add("hidden");
+  const systemPrompt = els.convPrompt.value.trim();
+  const maxQuestions = Number(els.convQuestions.value);
+  if (!systemPrompt) {
+    els.convSetupError.textContent = "Escribe un escenario.";
+    els.convSetupError.classList.remove("hidden");
+    return;
+  }
+
+  els.convStart.disabled = true;
+  let response;
+  try {
+    response = await fetch("/conversation/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system_prompt: systemPrompt, max_questions: maxQuestions }),
+    });
+  } catch (err) {
+    els.convStart.disabled = false;
+    els.convSetupError.textContent = "No se pudo contactar al servidor: " + err.message;
+    els.convSetupError.classList.remove("hidden");
+    return;
+  }
+  els.convStart.disabled = false;
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    els.convSetupError.textContent =
+      formatDetail(body.detail) || `El servidor respondio ${response.status}.`;
+    els.convSetupError.classList.remove("hidden");
+    return;
+  }
+
+  const data = await response.json();
+  conversationId = data.conversation_id;
+  els.convSetup.classList.add("hidden");
+  els.convFinal.classList.add("hidden");
+  els.convActive.classList.remove("hidden");
+  showQuestion(data.question);
+}
+
+// Sink de grabacion para la conversacion: manda el audio de la respuesta al servidor.
+async function sendConversationAnswer(wavBlob) {
+  els.convError.classList.add("hidden");
+  const form = new FormData();
+  form.append("audio", wavBlob, "answer.wav");
+
+  let response;
+  try {
+    response = await fetch(`/conversation/${conversationId}/answer`, {
+      method: "POST",
+      body: form,
+    });
+  } catch (err) {
+    showConvError("No se pudo contactar al servidor: " + err.message);
+    return;
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    showConvError(formatDetail(body.detail) || `El servidor respondio ${response.status}.`);
+    return;
+  }
+
+  const data = await response.json();
+  renderScoreCards(els.convTurnScores, data.turn_scores);
+  els.convRecognized.textContent = data.recognized_text || "(vacio)";
+  els.convTurn.classList.remove("hidden");
+
+  if (data.final) {
+    renderScoreCards(els.convFinalScores, data.final.scores);
+    els.convFeedback.textContent = data.final.content_feedback;
+    els.convActive.classList.add("hidden");
+    els.convFinal.classList.remove("hidden");
+    conversationId = null;
+    loadWordBank();
+  } else {
+    showQuestion(data.next_question);
+  }
+}
+
+// Al entrar/salir de la vista conversacion, se conecta/desconecta el sink de grabacion y
+// se reusan los botones de grabar. La vista tiene su propio boton, que delega en el flujo
+// comun de grabacion apuntando al sink de conversacion.
+els.convStart.addEventListener("click", startConversation);
+els.convListen.addEventListener("click", () => speak(els.convQuestion.textContent));
+els.convRecord.addEventListener("click", () => {
+  if (state === "idle") {
+    recordSink = sendConversationAnswer;
+    startRecording();
+    els.convRecord.textContent = "Parar";
+    els.convStatus.textContent = "Grabando... responde ahora.";
+  } else if (state === "recording") {
+    stopRecording();
+    els.convRecord.textContent = "Responder";
+    els.convStatus.textContent = "Evaluando...";
+  }
+});
+els.convRestart.addEventListener("click", () => {
+  els.convFinal.classList.add("hidden");
+  els.convSetup.classList.remove("hidden");
+});
+
 // --- arranque ----------------------------------------------------------------
 
 els.record.addEventListener("click", () => {
@@ -649,6 +806,8 @@ function switchView(name) {
   els.views.forEach((view) => {
     view.classList.toggle("hidden", view.id !== `view-${name}`);
   });
+  // Fuera de la conversacion, la grabacion vuelve a su destino por defecto.
+  if (name !== "conversation") recordSink = null;
 }
 
 // Menu: muestra la vista elegida y oculta las demas.

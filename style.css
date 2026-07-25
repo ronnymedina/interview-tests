@@ -485,3 +485,13 @@ button.small {
   font-size: 0.8rem;
   margin-right: 0.35rem;
 }
+
+#conv-setup textarea,
+#conv-setup input[type="number"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#conv-question {
+  min-height: 1.5em;
+}
