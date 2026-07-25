@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 import config
+import conversation
 import db
 import speech
 
@@ -41,6 +42,11 @@ class TextIn(BaseModel):
     title: str
     content: str
     difficulty: int | None = None
+
+
+class ConversationStartIn(BaseModel):
+    system_prompt: str
+    max_questions: int = 5
 
 
 def _clean_text(text: TextIn) -> tuple[str, str, int | None]:
@@ -112,6 +118,70 @@ async def assess(audio: UploadFile, text_id: int = Form(...)) -> JSONResponse:
 
     result["attempt_id"] = db.save_attempt(text_id, result)
     return JSONResponse(result)
+
+
+@app.post("/conversation/start")
+def conversation_start(payload: ConversationStartIn) -> dict:
+    prompt = payload.system_prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="El system prompt esta vacio.")
+    if not (1 <= payload.max_questions <= 20):
+        raise HTTPException(
+            status_code=400, detail="El numero de preguntas debe estar entre 1 y 20."
+        )
+    try:
+        conversation_id, question = conversation.start(prompt, payload.max_questions)
+    except conversation.ConversationError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+    return {"conversation_id": conversation_id, "question": question}
+
+
+@app.post("/conversation/{conversation_id}/answer")
+async def conversation_answer(conversation_id: str, audio: UploadFile) -> JSONResponse:
+    audio_bytes = await audio.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="No llego audio.")
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmp.write(audio_bytes)
+        wav_path = tmp.name
+
+    try:
+        assessment = await run_in_threadpool(speech.assess_unscripted, wav_path)
+    except speech.SpeechError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+    finally:
+        os.unlink(wav_path)
+
+    try:
+        result = await run_in_threadpool(
+            conversation.answer,
+            conversation_id,
+            assessment["recognized_text"],
+            assessment["scores"],
+            assessment["words"],
+        )
+    except conversation.ConversationError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+
+    response = {
+        "recognized_text": assessment["recognized_text"],
+        "turn_scores": assessment["scores"],
+        "words": assessment["words"],
+    }
+    if "final" in result:
+        final = result["final"]
+        db.save_conversation(
+            final["system_prompt"],
+            final["questions_asked"],
+            final["scores"],
+            final["content_feedback"],
+            final["words"],
+        )
+        response["final"] = final
+    else:
+        response["next_question"] = result["question"]
+    return JSONResponse(response)
 
 
 @app.get("/history")

@@ -1,7 +1,8 @@
 """Tests de los endpoints: CRUD de textos y /assess ligado a un texto."""
 
-from conftest import make_result
+from conftest import make_result, make_unscripted_result
 
+import conversation
 import db
 import speech
 
@@ -84,3 +85,65 @@ def test_assess_saves_attempt_linked_to_text(client, monkeypatch):
 
     text = client.get("/texts").json()[0]
     assert text["times"] == 1
+
+
+def test_conversation_start_returns_question(client, monkeypatch):
+    monkeypatch.setattr(conversation, "start", lambda prompt, max_q: ("cid-1", "First question?"))
+    resp = client.post("/conversation/start", json={"system_prompt": "Roleplay", "max_questions": 3})
+    assert resp.status_code == 200
+    assert resp.json() == {"conversation_id": "cid-1", "question": "First question?"}
+
+
+def test_conversation_start_empty_prompt_rejected(client):
+    resp = client.post("/conversation/start", json={"system_prompt": "   ", "max_questions": 3})
+    assert resp.status_code == 400
+
+
+def test_conversation_start_bad_max_rejected(client):
+    resp = client.post("/conversation/start", json={"system_prompt": "Roleplay", "max_questions": 0})
+    assert resp.status_code == 400
+
+
+def test_conversation_answer_intermediate(client, monkeypatch):
+    monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
+    monkeypatch.setattr(
+        conversation, "answer",
+        lambda cid, text, scores, words: {"question": "Next question?"},
+    )
+    resp = client.post(
+        "/conversation/cid-1/answer",
+        files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["next_question"] == "Next question?"
+    assert body["recognized_text"] == "hello world"
+    assert body["turn_scores"]["completeness"] is None
+
+
+def test_conversation_answer_final_is_saved(client, monkeypatch):
+    monkeypatch.setattr(speech, "assess_unscripted", lambda wav_path: make_unscripted_result())
+    final_payload = {
+        "final": {
+            "scores": {"pronunciation": 84.0, "accuracy": 88.0, "fluency": 80.0, "prosody": 70.0},
+            "content_feedback": "Buen intento.",
+            "system_prompt": "Roleplay",
+            "questions_asked": 2,
+            "words": [{"word": "hello", "error_type": "None", "accuracy": 95.0, "phonemes": []}],
+        }
+    }
+    monkeypatch.setattr(conversation, "answer", lambda cid, text, scores, words: final_payload)
+
+    resp = client.post(
+        "/conversation/cid-1/answer",
+        files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["final"]["content_feedback"] == "Buen intento."
+
+    saved = db.list_conversations()
+    assert len(saved) == 1
+    assert saved[0]["system_prompt"] == "Roleplay"
+    assert saved[0]["pronunciation_score"] == 84.0
+    # Las palabras alimentaron el banco.
+    assert [s["word"] for s in db.list_word_stats()] == ["hello"]
