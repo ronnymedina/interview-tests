@@ -156,6 +156,7 @@ def test_conversation_answer_final_aggregates_and_saves(client, monkeypatch):
             "content_feedback": "Buen intento.",
             "system_prompt": "Roleplay",
             "questions_asked": 1,
+            "practice_words": [{"word": "worked", "hint": "-ed → /t/"}],
         }
     }
     monkeypatch.setattr(conversation, "answer", lambda cid, text: final_payload)
@@ -170,6 +171,8 @@ def test_conversation_answer_final_aggregates_and_saves(client, monkeypatch):
     assert body["final"]["content_feedback"] == "Buen intento."
     # Los scores del final salen del agregado del scoring encolado.
     assert body["final"]["scores"]["pronunciation"] == 85.0
+    # Las palabras a practicar viajan tal cual desde conversation.answer.
+    assert body["final"]["practice_words"] == [{"word": "worked", "hint": "-ed → /t/"}]
 
     saved = db.list_conversations()
     assert len(saved) == 1

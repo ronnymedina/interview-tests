@@ -193,7 +193,11 @@ async def conversation_answer(
             final["content_feedback"],
             words,
         )
-        response["final"] = {"scores": scores, "content_feedback": final["content_feedback"]}
+        response["final"] = {
+            "scores": scores,
+            "content_feedback": final["content_feedback"],
+            "practice_words": final["practice_words"],
+        }
     else:
         response["next_question"] = result["question"]
     return JSONResponse(response)
