@@ -1,7 +1,7 @@
 """Tests del grafo de conversacion con un LLM falso (sin red)."""
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 import config
 import conversation
@@ -19,6 +19,19 @@ class FakeLLM:
         return AIMessage(self._replies.pop(0))
 
 
+class GeminiLikeLLM(FakeLLM):
+    """Como FakeLLM pero exige al menos un turno humano, igual que Gemini.
+
+    Gemini falla con "contents are required" si no hay ningun HumanMessage; este doble
+    reproduce esa restriccion para cubrir el primer turno (que solo trae SystemMessage).
+    """
+
+    def invoke(self, messages):
+        if not any(isinstance(m, HumanMessage) for m in messages):
+            raise ValueError("contents are required.")
+        return super().invoke(messages)
+
+
 def _scores(pronunciation):
     return {
         "pronunciation": pronunciation,
@@ -32,6 +45,14 @@ def test_start_asks_first_question():
     graph = conversation.build_graph(FakeLLM(["What did you do yesterday?"]))
     conversation_id, question = conversation.start("Roleplay sobre trabajo", 2, graph=graph)
     assert isinstance(conversation_id, str) and conversation_id
+    assert question == "What did you do yesterday?"
+
+
+def test_first_ask_includes_human_turn_for_gemini():
+    # Reproduce el bug real: en el primer turno solo hay SystemMessage y Gemini exige un
+    # turno humano. El nodo `ask` debe agregar un empujon humano para arrancar.
+    graph = conversation.build_graph(GeminiLikeLLM(["What did you do yesterday?"]))
+    _, question = conversation.start("Roleplay sobre trabajo", 2, graph=graph)
     assert question == "What did you do yesterday?"
 
 

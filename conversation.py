@@ -27,6 +27,11 @@ _ASK_INSTRUCTION = (
     "the learner's spoken answer. Never answer on the learner's behalf. Scenario:\n\n"
 )
 
+# Empujon humano para el primer turno: Gemini exige al menos un turno de usuario en
+# `contents` (el SystemMessage se manda como system_instruction, no cuenta). Solo se usa
+# para la llamada al LLM del primer `ask`; no se persiste en el historial.
+_KICKOFF = "Let's begin. Ask me your first question."
+
 # Instruccion para el feedback final de contenido.
 _FEEDBACK_INSTRUCTION = (
     "The practice is over. In Spanish, give the learner brief feedback (4-6 sentences) on "
@@ -65,7 +70,12 @@ def build_graph(llm):
         return "finalize" if state["questions_asked"] >= state["max_questions"] else "ask"
 
     def ask(state: State) -> dict:
-        question = llm.invoke(state["messages"]).content
+        messages = state["messages"]
+        # En el primer turno solo hay un SystemMessage; Gemini requiere al menos un turno
+        # humano en `contents`. Agregamos el empujon solo para esta llamada (no se guarda).
+        if not any(isinstance(m, HumanMessage) for m in messages):
+            messages = messages + [HumanMessage(_KICKOFF)]
+        question = llm.invoke(messages).content
         return {
             "messages": [AIMessage(question)],
             "questions_asked": state["questions_asked"] + 1,
