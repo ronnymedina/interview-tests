@@ -77,8 +77,8 @@ Nodos:
 
 - **`ask`**: Gemini genera la siguiente pregunta a partir del system prompt + historial;
   incrementa `questions_asked`; añade el mensaje AI.
-- **`decide`** (condicional): si `questions_asked >= max_questions` → `finalize`; si no,
-  espera el siguiente turno del usuario (que llega por HTTP) y vuelve a `ask`.
+- **`decide`** (arista condicional tras inyectar la respuesta del usuario): si
+  `questions_asked >= max_questions` → `finalize`; si no → `ask`.
 - **`finalize`**: Gemini genera el feedback de contenido (gramática/vocabulario) sobre las
   respuestas del usuario.
 
