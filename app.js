@@ -388,16 +388,9 @@ const SCORE_LABELS = {
 };
 
 function renderResult(result) {
-  els.scores.innerHTML = "";
-  for (const [key, label] of Object.entries(SCORE_LABELS)) {
-    const value = result.scores[key];
-    // Azure omite prosody en idiomas que no la soportan.
-    if (value === null || value === undefined) continue;
-    const card = document.createElement("div");
-    card.className = `card ${scoreClass(value)}`;
-    card.innerHTML = `<span class="value">${formatScore(value)}</span><span class="label">${label}</span>`;
-    els.scores.appendChild(card);
-  }
+  // Azure omite prosody en idiomas que no la soportan; renderScoreCards ya salta
+  // los valores null/undefined.
+  renderScoreCards(els.scores, result.scores);
 
   els.words.innerHTML = "";
   for (const word of result.words) {
@@ -647,14 +640,20 @@ function setState(next) {
   else if (els.status.textContent !== "Intento cancelado.") els.status.textContent = "";
 }
 
+// El pipeline de grabacion (startRecording/stopRecording) es compartido entre la
+// practica y la conversacion. `recordSink` ya nos dice a cual de las dos pertenece
+// el intento en curso, asi que lo reusamos para enrutar los errores al elemento
+// visible correspondiente: practica -> els.error, conversacion -> els.convError.
 function showError(message) {
-  els.error.textContent = message;
-  els.error.classList.remove("hidden");
+  const target = recordSink ? els.convError : els.error;
+  target.textContent = message;
+  target.classList.remove("hidden");
 }
 
 function clearError() {
-  els.error.textContent = "";
-  els.error.classList.add("hidden");
+  const target = recordSink ? els.convError : els.error;
+  target.textContent = "";
+  target.classList.add("hidden");
 }
 
 // --- conversacion ------------------------------------------------------------
@@ -692,6 +691,11 @@ async function startConversation() {
   const maxQuestions = Number(els.convQuestions.value);
   if (!systemPrompt) {
     els.convSetupError.textContent = "Escribe un escenario.";
+    els.convSetupError.classList.remove("hidden");
+    return;
+  }
+  if (!Number.isInteger(maxQuestions) || maxQuestions < 1 || maxQuestions > 20) {
+    els.convSetupError.textContent = "El numero de preguntas debe ser un entero entre 1 y 20.";
     els.convSetupError.classList.remove("hidden");
     return;
   }
@@ -773,16 +777,29 @@ async function sendConversationAnswer(wavBlob) {
 // comun de grabacion apuntando al sink de conversacion.
 els.convStart.addEventListener("click", startConversation);
 els.convListen.addEventListener("click", () => speak(els.convQuestion.textContent));
-els.convRecord.addEventListener("click", () => {
+els.convRecord.addEventListener("click", async () => {
   if (state === "idle") {
     recordSink = sendConversationAnswer;
-    startRecording();
-    els.convRecord.textContent = "Parar";
-    els.convStatus.textContent = "Grabando... responde ahora.";
+    await startRecording();
+    if (state === "recording") {
+      els.convRecord.textContent = "Parar";
+      els.convStatus.textContent = "Grabando... responde ahora.";
+    } else {
+      // startRecording no arranco (permiso denegado, sin audio, etc.). El error ya
+      // quedo visible en convError via el enrutado de showError; solo falta que el
+      // boton y el estado no mientan sobre que se esta grabando.
+      els.convRecord.textContent = "Responder";
+      els.convStatus.textContent = "";
+      recordSink = null;
+    }
   } else if (state === "recording") {
-    stopRecording();
     els.convRecord.textContent = "Responder";
-    els.convStatus.textContent = "Evaluando...";
+    // stopRecording() corre de forma sincrona hasta su primer await, asi que para
+    // cuando esta linea se ejecuta `state` ya refleja si el envio arranco
+    // ("sending") o si no hubo audio y se aborto ("idle" + error en convError).
+    const pending = stopRecording();
+    els.convStatus.textContent = state === "sending" ? "Evaluando..." : "";
+    await pending;
   }
 });
 els.convRestart.addEventListener("click", () => {
@@ -806,6 +823,16 @@ function switchView(name) {
   els.views.forEach((view) => {
     view.classList.toggle("hidden", view.id !== `view-${name}`);
   });
+
+  // Cambiar de pestana a mitad de una grabacion la cancela: si no, el audio
+  // quedaria apuntando al sink equivocado (p.ej. conversacion grabando y luego
+  // "Parar" en practica mandaria ese audio a /assess).
+  if (state !== "idle") {
+    cancelRecording();
+    els.convRecord.textContent = "Responder";
+    els.convStatus.textContent = "";
+  }
+
   // Fuera de la conversacion, la grabacion vuelve a su destino por defecto.
   if (name !== "conversation") recordSink = null;
 }
