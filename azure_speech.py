@@ -52,7 +52,9 @@ class AzureSpeechClient:
             reference_text=reference_text,
             grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
             granularity=speechsdk.PronunciationAssessmentGranularity.Phoneme,
-            enable_miscue=True,
+            # Sin texto de referencia (modo unscripted) no hay omisiones/inserciones que
+            # comparar: el miscue solo tiene sentido con referencia.
+            enable_miscue=bool(reference_text),
         )
         pron_config.enable_prosody_assessment()
         pron_config.phoneme_alphabet = "IPA"

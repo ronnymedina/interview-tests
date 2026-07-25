@@ -112,3 +112,46 @@ def test_azure_cancel_translated_to_502():
         speech.assess("a.wav", "hello", client=client)
     assert error.value.status == 502
     assert "boom" in str(error.value)
+
+
+def test_unscripted_passes_empty_reference():
+    state = make_state([rec_word("hello", 95.0)], ["hello"], durations=[500000], end=600000)
+    client = FakeClient(state)
+    speech.assess_unscripted("a.wav", client=client)
+    # Sin texto de referencia: se pasa cadena vacia al wrapper.
+    assert client.called_with == ("a.wav", "")
+
+
+def test_unscripted_scores_have_no_completeness():
+    state = make_state([rec_word("hello", 90.0), rec_word("world", 80.0)],
+                       ["hello world"], durations=[500000, 400000], end=1_000_000)
+    result = speech.assess_unscripted("a.wav", client=FakeClient(state))
+    assert result["scores"]["completeness"] is None
+    assert result["scores"]["accuracy"] == 85.0
+    assert result["recognized_text"] == "hello world"
+
+
+def test_unscripted_mispronunciation_below_60():
+    state = make_state([rec_word("hello", 40.0)], ["hello"], durations=[500000], end=600000)
+    result = speech.assess_unscripted("a.wav", client=FakeClient(state))
+    assert result["words"][0]["error_type"] == "Mispronunciation"
+
+
+def test_unscripted_no_speech_raises_422():
+    with pytest.raises(speech.SpeechError) as error:
+        speech.assess_unscripted("a.wav", client=FakeClient(make_state([], [])))
+    assert error.value.status == 422
+
+
+def test_unscripted_missing_key_raises_500(monkeypatch):
+    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "")
+    with pytest.raises(speech.SpeechError) as error:
+        speech.assess_unscripted("a.wav", client=FakeClient(make_state([], [])))
+    assert error.value.status == 500
+
+
+def test_unscripted_cancel_translated_to_502():
+    client = FakeClient(error=AzureSpeechError("boom"))
+    with pytest.raises(speech.SpeechError) as error:
+        speech.assess_unscripted("a.wav", client=client)
+    assert error.value.status == 502

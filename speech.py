@@ -125,3 +125,78 @@ def _aggregate(state: dict, reference_words: list[str]) -> dict:
         },
         "words": [AzureSpeechClient.word_to_dict(w) for w in final_words],
     }
+
+
+def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) -> dict:
+    """Evalua la pronunciacion de un WAV SIN texto de referencia.
+
+    Se usa en la conversacion: el usuario habla libremente y no hay un texto previo que
+    comparar. Azure reconoce lo dicho y puntua accuracy/fluency/prosody; no hay
+    completeness (requiere referencia). El texto reconocido sirve ademas como la
+    transcripcion de lo que dijo el usuario.
+    """
+    if not config.AZURE_SPEECH_KEY:
+        raise SpeechError(
+            "Falta AZURE_SPEECH_KEY en el archivo .env. Copia .env.example a .env "
+            "y pon tu clave de Azure.",
+            status=500,
+        )
+
+    if client is None:
+        client = AzureSpeechClient(
+            config.AZURE_SPEECH_KEY, config.AZURE_SPEECH_REGION, config.SPEECH_LANGUAGE
+        )
+
+    try:
+        state = client.recognize(wav_path, "")
+    except AzureSpeechError as error:
+        raise SpeechError(f"Azure cancelo la peticion: {error}", status=502)
+
+    if not state["words"]:
+        raise SpeechError(
+            "No se detecto voz en el audio. Revisa el microfono e intenta de nuevo.",
+            status=422,
+        )
+
+    return _aggregate_unscripted(state)
+
+
+def _aggregate_unscripted(state: dict) -> dict:
+    """Combina los segmentos en un resultado sin referencia (sin completeness ni miscue)."""
+    words = list(state["words"])
+
+    # Accuracy por debajo de 60 sin otro error = mala pronunciacion (misma regla que assess).
+    for word in words:
+        if word.error_type == "None" and word.accuracy_score < 60:
+            word._error_type = "Mispronunciation"
+
+    accuracy = sum(w.accuracy_score for w in words) / len(words)
+
+    prosody = (
+        sum(state["prosody_scores"]) / len(state["prosody_scores"])
+        if state["prosody_scores"]
+        else None
+    )
+
+    span = state["end_offset"] - state["start_offset"]
+    fluency = sum(state["durations"]) / span * 100 if span > 0 else 0.0
+
+    # El peor score pesa mas (misma idea que la formula oficial), pero sin completeness.
+    if prosody is not None:
+        ordered = sorted([accuracy, fluency, prosody])
+        pronunciation = ordered[0] * 0.6 + ordered[1] * 0.2 + ordered[2] * 0.2
+    else:
+        ordered = sorted([accuracy, fluency])
+        pronunciation = ordered[0] * 0.6 + ordered[1] * 0.4
+
+    return {
+        "recognized_text": " ".join(state["texts"]),
+        "scores": {
+            "pronunciation": round(pronunciation, 1),
+            "accuracy": round(accuracy, 1),
+            "fluency": round(fluency, 1),
+            "completeness": None,
+            "prosody": round(prosody, 1) if prosody is not None else None,
+        },
+        "words": [AzureSpeechClient.word_to_dict(w) for w in words],
+    }
