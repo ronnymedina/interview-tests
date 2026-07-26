@@ -501,6 +501,12 @@ button.small {
   box-sizing: border-box;
 }
 
+#view-conv-prompts textarea,
+#view-conv-prompts input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .practice-words {
   display: flex;
   flex-direction: column;

@@ -14,6 +14,7 @@
         <button type="button" data-view="practice" class="active">Practicar</button>
         <button type="button" data-view="conversation">Conversacion</button>
         <button type="button" data-view="texts">Textos</button>
+        <button type="button" data-view="conv-prompts">Prompt de conversacion</button>
         <button type="button" data-view="words">Banco de palabras</button>
         <button type="button" data-view="history">Historial</button>
         <button type="button" data-view="settings">Ajustes</button>
@@ -168,6 +169,51 @@
               <th>Dificultad</th>
               <th>Veces</th>
               <th>Promedio</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <!-- Vista: prompts de conversacion (generar y gestionar) -->
+      <section id="view-conv-prompts" class="view hidden">
+        <h2>Prompt de conversacion</h2>
+        <p class="hint">
+          Escribe o dicta un contexto (tu intencion, tu CV, un tema), genera un escenario en
+          ingles con el asistente, editalo y guardalo con un nombre para reutilizarlo en tus
+          conversaciones.
+        </p>
+
+        <input type="hidden" id="cp-id" />
+
+        <label for="cp-context">Contexto / intencion</label>
+        <textarea id="cp-context" rows="4"
+          placeholder="Practicar una entrevista para un puesto backend; evalua mi vocabulario tecnico. (Puedes pegar tu CV)"></textarea>
+        <div class="controls">
+          <button id="cp-dictate" type="button" class="secondary">🎤 Dictar</button>
+          <button id="cp-generate" type="button">✨ Generar escenario</button>
+          <span id="cp-status" class="status"></span>
+        </div>
+
+        <label for="cp-prompt">Escenario (editable)</label>
+        <textarea id="cp-prompt" rows="5"
+          placeholder="El escenario en ingles aparecera aqui; puedes editarlo antes de guardar."></textarea>
+
+        <label for="cp-name">Nombre del prompt</label>
+        <input id="cp-name" type="text" maxlength="200" />
+
+        <div class="controls">
+          <button id="cp-save" type="button">Guardar prompt</button>
+          <button id="cp-cancel" type="button" class="secondary">Limpiar</button>
+          <span id="cp-error" class="error hidden"></span>
+        </div>
+
+        <table id="conv-prompts">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Escenario</th>
               <th></th>
             </tr>
           </thead>

@@ -57,6 +57,17 @@ const els = {
   convPracticeWordsBlock: document.getElementById("conv-practice-words-block"),
   convPracticeWords: document.getElementById("conv-practice-words"),
   convRestart: document.getElementById("conv-restart"),
+  cpId: document.getElementById("cp-id"),
+  cpContext: document.getElementById("cp-context"),
+  cpDictate: document.getElementById("cp-dictate"),
+  cpGenerate: document.getElementById("cp-generate"),
+  cpStatus: document.getElementById("cp-status"),
+  cpPrompt: document.getElementById("cp-prompt"),
+  cpName: document.getElementById("cp-name"),
+  cpSave: document.getElementById("cp-save"),
+  cpCancel: document.getElementById("cp-cancel"),
+  cpError: document.getElementById("cp-error"),
+  convPrompts: document.querySelector("#conv-prompts tbody"),
 };
 
 // Ultimos textos cargados, para poblar el selector de practica y la tabla de gestion.
@@ -922,6 +933,172 @@ els.convRestart.addEventListener("click", () => {
   els.convSetup.classList.remove("hidden");
 });
 
+// --- prompts de conversacion (generar / gestionar) ---------------------------
+
+let conversationPromptsData = []; // ultimos prompts cargados, para el select y la tabla
+
+async function loadConversationPrompts() {
+  const response = await fetch("/conversation/prompts");
+  if (!response.ok) return;
+  conversationPromptsData = await response.json();
+  renderConversationPromptsTable();
+  // Definido en la vista Conversacion (Task 5). El guard evita romper el arranque
+  // mientras esa tarea todavia no existe.
+  if (typeof renderConversationPromptSelect === "function") renderConversationPromptSelect();
+}
+
+function renderConversationPromptsTable() {
+  els.convPrompts.innerHTML = "";
+  if (conversationPromptsData.length === 0) {
+    els.convPrompts.innerHTML = `<tr><td colspan="3" class="empty">Sin prompts todavia.</td></tr>`;
+    return;
+  }
+  for (const prompt of conversationPromptsData) {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td class="truncate">${escapeHtml(prompt.name)}</td>
+      <td class="truncate">${escapeHtml(prompt.system_prompt)}</td>
+    `;
+    const actions = document.createElement("td");
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "secondary small";
+    edit.textContent = "Editar";
+    edit.addEventListener("click", () => editConversationPrompt(prompt));
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "secondary small";
+    del.textContent = "Borrar";
+    del.addEventListener("click", () => deleteConversationPrompt(prompt));
+    actions.append(edit, del);
+    row.appendChild(actions);
+    els.convPrompts.appendChild(row);
+  }
+}
+
+function showCpError(message) {
+  els.cpError.textContent = message;
+  els.cpError.classList.remove("hidden");
+}
+
+function editConversationPrompt(prompt) {
+  els.cpError.classList.add("hidden");
+  els.cpId.value = prompt.id;
+  els.cpPrompt.value = prompt.system_prompt;
+  els.cpName.value = prompt.name;
+  els.cpContext.value = "";
+  els.cpName.focus();
+}
+
+function clearConversationPromptForm() {
+  els.cpError.classList.add("hidden");
+  els.cpId.value = "";
+  els.cpContext.value = "";
+  els.cpPrompt.value = "";
+  els.cpName.value = "";
+}
+
+async function generateConversationPrompt() {
+  els.cpError.classList.add("hidden");
+  const context = els.cpContext.value.trim();
+  if (!context) {
+    showCpError("Escribe o dicta un contexto primero.");
+    return;
+  }
+  els.cpGenerate.disabled = true;
+  els.cpStatus.textContent = "Generando...";
+  let response;
+  try {
+    response = await fetch("/conversation/prompt/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context }),
+    });
+  } catch (err) {
+    els.cpGenerate.disabled = false;
+    els.cpStatus.textContent = "";
+    showCpError("No se pudo contactar al servidor: " + err.message);
+    return;
+  }
+  els.cpGenerate.disabled = false;
+  els.cpStatus.textContent = "";
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    showCpError(formatDetail(body.detail) || `El servidor respondio ${response.status}.`);
+    return;
+  }
+  els.cpPrompt.value = (await response.json()).system_prompt;
+}
+
+async function saveConversationPrompt() {
+  els.cpError.classList.add("hidden");
+  const name = els.cpName.value.trim();
+  const systemPrompt = els.cpPrompt.value.trim();
+  if (!name) return showCpError("Ponle un nombre al prompt.");
+  if (!systemPrompt) return showCpError("El escenario esta vacio.");
+
+  const id = els.cpId.value;
+  const url = id ? `/conversation/prompts/${id}` : "/conversation/prompts";
+  const method = id ? "PUT" : "POST";
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, system_prompt: systemPrompt }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    showCpError(formatDetail(body.detail) || "No se pudo guardar.");
+    return;
+  }
+  clearConversationPromptForm();
+  await loadConversationPrompts();
+}
+
+async function deleteConversationPrompt(prompt) {
+  if (!confirm(`Borrar el prompt "${prompt.name}"?`)) return;
+  const response = await fetch(`/conversation/prompts/${prompt.id}`, { method: "DELETE" });
+  if (!response.ok) return;
+  if (els.cpId.value === String(prompt.id)) clearConversationPromptForm();
+  await loadConversationPrompts();
+}
+
+// Dictado por voz del cuadro de contexto (Web Speech API del navegador; gratis, sin backend).
+// Se usa es-ES porque el contexto se dicta normalmente en espanol. Reusa el mismo objeto
+// SpeechRecognition que ya detecta la conversacion.
+let promptRecognition = null;
+let promptDictating = false;
+
+function togglePromptDictation() {
+  if (!SpeechRecognition) return;
+  if (promptDictating) {
+    promptRecognition.stop();
+    return;
+  }
+  promptRecognition = new SpeechRecognition();
+  promptRecognition.lang = "es-ES";
+  promptRecognition.continuous = true;
+  promptRecognition.interimResults = false;
+  promptRecognition.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        const text = event.results[i][0].transcript.trim();
+        els.cpContext.value = (els.cpContext.value + " " + text).trim();
+      }
+    }
+  };
+  const stop = () => {
+    promptDictating = false;
+    els.cpDictate.textContent = "🎤 Dictar";
+    els.cpStatus.textContent = "";
+  };
+  promptRecognition.onend = stop;
+  promptRecognition.onerror = stop;
+  promptRecognition.start();
+  promptDictating = true;
+  els.cpDictate.textContent = "⏹ Parar";
+  els.cpStatus.textContent = "Escuchando...";
+}
+
 // --- arranque ----------------------------------------------------------------
 
 els.record.addEventListener("click", () => {
@@ -1003,6 +1180,17 @@ els.filters.addEventListener("click", (event) => {
   wordFilter = button.dataset.filter;
   renderWordBank();
 });
+
+// Pantalla de prompts de conversacion.
+els.cpGenerate.addEventListener("click", generateConversationPrompt);
+els.cpSave.addEventListener("click", saveConversationPrompt);
+els.cpCancel.addEventListener("click", clearConversationPromptForm);
+els.cpDictate.addEventListener("click", togglePromptDictation);
+if (!SpeechRecognition) {
+  els.cpDictate.disabled = true;
+  els.cpDictate.title = "Tu navegador no soporta dictado por voz.";
+}
+loadConversationPrompts();
 
 initSettings();
 initConversationSettings();
