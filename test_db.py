@@ -94,3 +94,31 @@ def test_conversation_words_feed_word_bank(temp_db):
     stats = db.list_word_stats()
     assert [s["word"] for s in stats] == ["yesterday"]
     assert stats[0]["avg_accuracy"] == 90.0
+
+
+def test_conversation_prompt_crud(temp_db):
+    assert db.list_conversation_prompts() == []
+
+    pid = db.create_conversation_prompt("Entrevista", "Ask about work.")
+    assert isinstance(pid, int) and pid > 0
+
+    got = db.get_conversation_prompt(pid)
+    assert got["name"] == "Entrevista"
+    assert got["system_prompt"] == "Ask about work."
+    assert got["created_at"] and got["updated_at"]
+
+    db.update_conversation_prompt(pid, "Entrevista v2", "Ask about backend work.")
+    got = db.get_conversation_prompt(pid)
+    assert got["name"] == "Entrevista v2"
+    assert got["system_prompt"] == "Ask about backend work."
+
+    db.delete_conversation_prompt(pid)
+    assert db.get_conversation_prompt(pid) is None
+    assert db.list_conversation_prompts() == []
+
+
+def test_conversation_prompts_ordered_id_desc(temp_db):
+    first = db.create_conversation_prompt("Uno", "A")
+    second = db.create_conversation_prompt("Dos", "B")
+    ids = [p["id"] for p in db.list_conversation_prompts()]
+    assert ids == [second, first]
