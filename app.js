@@ -36,7 +36,8 @@ const els = {
   views: document.querySelectorAll(".view"),
   filters: document.querySelector(".filters"),
   convSetup: document.getElementById("conv-setup"),
-  convPrompt: document.getElementById("conv-prompt"),
+  convPromptSelect: document.getElementById("conv-prompt-select"),
+  convNoPrompts: document.getElementById("conv-no-prompts"),
   convQuestions: document.getElementById("conv-questions"),
   convSource: document.getElementById("conv-source"),
   convSourceNote: document.getElementById("conv-source-note"),
@@ -791,15 +792,39 @@ function showQuestion(question) {
   speak(question);
 }
 
+// Puebla el selector de prompts de la vista Conversacion con los prompts guardados,
+// conservando la seleccion si sigue existiendo. Sin prompts: muestra el aviso y
+// deshabilita "Empezar" (mismo patron que el selector de textos en Practicar).
+function renderConversationPromptSelect() {
+  const previous = els.convPromptSelect.value;
+  els.convNoPrompts.classList.toggle("hidden", conversationPromptsData.length > 0);
+  els.convPromptSelect.classList.toggle("hidden", conversationPromptsData.length === 0);
+
+  els.convPromptSelect.innerHTML = "";
+  for (const prompt of conversationPromptsData) {
+    const option = document.createElement("option");
+    option.value = prompt.id;
+    option.textContent = prompt.name;
+    els.convPromptSelect.appendChild(option);
+  }
+  if (conversationPromptsData.some((p) => String(p.id) === previous)) {
+    els.convPromptSelect.value = previous;
+  }
+  els.convStart.disabled = conversationPromptsData.length === 0;
+}
+
 async function startConversation() {
   els.convSetupError.classList.add("hidden");
-  const systemPrompt = els.convPrompt.value.trim();
-  const maxQuestions = Number(els.convQuestions.value);
-  if (!systemPrompt) {
-    els.convSetupError.textContent = "Escribe un escenario.";
+  const selected = conversationPromptsData.find(
+    (p) => String(p.id) === els.convPromptSelect.value
+  );
+  if (!selected) {
+    els.convSetupError.textContent = "Elige un prompt de conversacion.";
     els.convSetupError.classList.remove("hidden");
     return;
   }
+  const systemPrompt = selected.system_prompt;
+  const maxQuestions = Number(els.convQuestions.value);
   if (!Number.isInteger(maxQuestions) || maxQuestions < 1 || maxQuestions > 20) {
     els.convSetupError.textContent = "El numero de preguntas debe ser un entero entre 1 y 20.";
     els.convSetupError.classList.remove("hidden");
@@ -1142,6 +1167,11 @@ els.menu.addEventListener("click", (event) => {
 // Enlace del aviso "no tienes textos" que lleva a la pestana Textos.
 els.noTexts.addEventListener("click", (event) => {
   if (event.target.closest("button[data-goto]")) switchView("texts");
+});
+
+// Enlace del aviso "no tienes prompts" que lleva a la pestana Prompt de conversacion.
+els.convNoPrompts.addEventListener("click", (event) => {
+  if (event.target.closest("button[data-goto]")) switchView("conv-prompts");
 });
 
 // Selector de texto en la vista Practicar.
