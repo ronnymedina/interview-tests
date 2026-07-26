@@ -43,6 +43,16 @@ _FEEDBACK_INSTRUCTION = (
     "it does not apply (nouns, etc.)."
 )
 
+# Meta-instruccion para generar el escenario a partir del contexto libre del alumno.
+# Devuelve texto plano (no salida estructurada): el escenario que luego envuelve _ASK_INSTRUCTION.
+_GENERATE_INSTRUCTION = (
+    "You are a prompt engineer for a spoken English practice app. Turn the learner's context "
+    "below into a concise scenario (2-5 sentences) for a spoken English practice partner: "
+    "describe what the partner should ask about and evaluate. Write it in English, addressed "
+    "in the second person to the practice partner. Output ONLY the scenario text, with no "
+    "preamble, no title and no quotes. Context:\n\n"
+)
+
 
 class ConversationError(Exception):
     """Error pensado para mostrarse al usuario. `status` es el codigo HTTP."""
@@ -146,13 +156,15 @@ def build_graph(llm):
     return graph.compile(checkpointer=InMemorySaver())
 
 
-# Grafo real (Gemini), construido una sola vez. Los tests usan build_graph con un doble.
+# Cliente Gemini y grafo reales, construidos una sola vez. Los tests inyectan dobles
+# (llm=/graph=), asi que estos accesores no se ejecutan en los tests.
+_llm = None
 _graph = None
 
 
-def _get_graph():
-    global _graph
-    if _graph is None:
+def _get_llm():
+    global _llm
+    if _llm is None:
         if not config.GEMINI_API_KEY:
             raise ConversationError(
                 "Falta GEMINI_API_KEY en el archivo .env. Copia .env.example a .env "
@@ -161,10 +173,16 @@ def _get_graph():
             )
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        llm = ChatGoogleGenerativeAI(
+        _llm = ChatGoogleGenerativeAI(
             model=config.GEMINI_MODEL, google_api_key=config.GEMINI_API_KEY
         )
-        _graph = build_graph(llm)
+    return _llm
+
+
+def _get_graph():
+    global _graph
+    if _graph is None:
+        _graph = build_graph(_get_llm())
     return _graph
 
 
@@ -231,3 +249,17 @@ def answer(conversation_id: str, recognized_text: str, graph=None) -> dict:
             }
         }
     return {"question": result["messages"][-1].content}
+
+
+def generate_system_prompt(context: str, llm=None) -> str:
+    """Expande un contexto libre del alumno a un escenario en ingles usando el LLM.
+
+    Es una llamada simple (sin grafo). El escenario resultante es lo mismo que hoy se
+    escribe a mano en el campo "escenario": al iniciar la conversacion lo envuelve
+    _ASK_INSTRUCTION. `llm=` es inyectable para los tests.
+    """
+    context = context.strip()
+    if not context:
+        raise ConversationError("El contexto esta vacio.", status=400)
+    llm = llm or _get_llm()
+    return _content_text(llm.invoke([HumanMessage(_GENERATE_INSTRUCTION + context)]))
