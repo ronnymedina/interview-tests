@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conversación de inglés</title>
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.5; background: #f7f7f8; color: #1a1a1a;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #16181c; color: #e8e8e8; }
+        .card { background: #22252b !important; border-color: #333 !important; }
+        input, textarea, select { background: #1a1c20 !important; color: #e8e8e8 !important; border-color: #3a3d44 !important; }
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+      h1 { font-size: 1.5rem; margin: 0 0 4px; }
+      h2 { font-size: 1.1rem; margin: 0 0 12px; }
+      .sub { color: #666; margin: 0 0 24px; }
+      .card {
+        background: #fff; border: 1px solid #e2e2e5; border-radius: 12px;
+        padding: 20px; margin-bottom: 20px;
+      }
+      label { display: block; font-weight: 600; font-size: .9rem; margin: 14px 0 4px; }
+      input, textarea, select {
+        width: 100%; padding: 9px 11px; border: 1px solid #cfcfd4; border-radius: 8px;
+        font: inherit; background: #fff;
+      }
+      textarea { resize: vertical; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+      button {
+        font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px;
+        border: 1px solid transparent; background: #2f6bff; color: #fff; cursor: pointer;
+      }
+      button:hover { filter: brightness(1.05); }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+      button.secondary { background: transparent; border-color: #cfcfd4; color: inherit; }
+      button.small { padding: 5px 10px; font-size: .85rem; }
+      button.danger { background: #d94141; }
+      .status { color: #666; font-size: .9rem; }
+      .error { color: #d94141; font-size: .9rem; margin-top: 10px; }
+      .hidden { display: none !important; }
+      .question { font-size: 1.15rem; font-weight: 600; margin: 0; }
+      .feedback { white-space: pre-wrap; }
+      .pill {
+        display: inline-block; margin: 4px 6px 0 0; padding: 6px 12px; border-radius: 999px;
+        border: 1px solid #cfcfd4; background: transparent; color: inherit; cursor: pointer;
+        font-size: .9rem;
+      }
+      .phrase { margin: 8px 0; padding-left: 12px; border-left: 3px solid #2f6bff; }
+      .phrase del { color: #d94141; }
+      .phrase ins { color: #2a9d4a; text-decoration: none; }
+      .muted { color: #888; font-size: .85rem; }
+      .configs-list { margin-top: 8px; }
+      .config-item {
+        display: flex; align-items: center; gap: 8px; padding: 6px 0;
+        border-top: 1px solid #eee; font-size: .95rem;
+      }
+      .config-item .name { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Conversación de inglés</h1>
+      <p class="sub">
+        Escribe un contexto, guárdalo o elige uno anterior, y practica hablando. La
+        validación y las recomendaciones llegan al final de la conversación.
+      </p>
+
+      <!-- Ajustes de voz -->
+      <section class="card">
+        <h2>Voz</h2>
+        <label for="voice">Voz que lee las preguntas</label>
+        <select id="voice"></select>
+        <label for="rate">Velocidad: <span id="rate-value">0.95</span>×</label>
+        <input id="rate" type="range" min="0.5" max="1.3" step="0.05" value="0.95" />
+        <div class="row">
+          <button id="voice-test" type="button" class="secondary small">🔊 Probar voz</button>
+        </div>
+      </section>
+
+      <!-- Configuración de la conversación -->
+      <section id="setup" class="card">
+        <h2>Contexto de la conversación</h2>
+
+        <label for="config-select">Conversaciones guardadas</label>
+        <select id="config-select">
+          <option value="">— Nueva (escribe abajo) —</option>
+        </select>
+        <div class="configs-list" id="configs-list"></div>
+
+        <label for="ctx-name">Nombre (para guardarla)</label>
+        <input id="ctx-name" type="text" maxlength="200" placeholder="Ej: Entrevista de trabajo" />
+
+        <label for="ctx-content">Contexto / intención</label>
+        <textarea id="ctx-content" rows="5"
+          placeholder="Pega tu CV, tus preguntas o el material a practicar y qué querés mejorar; se conserva completo y el tutor pregunta en base a eso."></textarea>
+
+        <div class="row">
+          <button id="ctx-save" type="button" class="secondary">💾 Guardar</button>
+          <span id="ctx-status" class="status"></span>
+        </div>
+
+        <label for="questions">Número de preguntas (1–20)</label>
+        <input id="questions" type="number" min="1" max="20" value="5" style="max-width: 120px" />
+
+        <div class="row">
+          <button id="start" type="button">▶️ Empezar conversación</button>
+          <span id="setup-error" class="error hidden"></span>
+        </div>
+      </section>
+
+      <!-- Conversación en curso -->
+      <section id="active" class="card hidden">
+        <h2>Conversación</h2>
+        <div class="row" style="justify-content: space-between">
+          <p id="question" class="question"></p>
+          <button id="repeat" type="button" class="secondary small">🔊 Repetir</button>
+        </div>
+        <div class="row">
+          <button id="record" type="button">🎤 Responder</button>
+          <span id="conv-status" class="status"></span>
+        </div>
+        <p class="muted" id="heard"></p>
+        <div id="conv-error" class="error hidden"></div>
+      </section>
+
+      <!-- Resultado final -->
+      <section id="final" class="card hidden">
+        <h2>Resultado</h2>
+        <div id="feedback" class="feedback"></div>
+
+        <div id="words-block" class="hidden">
+          <h2 style="margin-top: 20px">Palabras para practicar</h2>
+          <p class="muted">Haz clic en una palabra para escucharla.</p>
+          <div id="words"></div>
+        </div>
+
+        <div id="phrases-block" class="hidden">
+          <h2 style="margin-top: 20px">Frases más naturales</h2>
+          <div id="phrases"></div>
+        </div>
+
+        <div class="row">
+          <button id="restart" type="button">Nueva conversación</button>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // ---- estado ----
+      let conversationId = null;
+
+      // ---- helpers de DOM ----
+      const $ = (id) => document.getElementById(id);
+      const show = (el) => el.classList.remove("hidden");
+      const hide = (el) => el.classList.add("hidden");
+
+      function showError(el, message) {
+        el.textContent = message;
+        show(el);
+      }
+      function clearError(el) {
+        el.textContent = "";
+        hide(el);
+      }
+
+      // ---- voz (TTS) ----
+      let voices = [];
+      function loadVoices() {
+        voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+        const select = $("voice");
+        select.innerHTML = "";
+        voices.forEach((v, i) => {
+          const opt = document.createElement("option");
+          opt.value = String(i);
+          opt.textContent = `${v.name} (${v.lang})`;
+          select.appendChild(opt);
+        });
+      }
+      loadVoices();
+      speechSynthesis.onvoiceschanged = loadVoices;
+
+      function speak(text) {
+        if (!text) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        const voice = voices[Number($("voice").value)] || null;
+        if (voice) u.voice = voice;
+        u.lang = voice ? voice.lang : "en-US";
+        u.rate = Number($("rate").value);
+        speechSynthesis.speak(u);
+      }
+
+      $("rate").addEventListener("input", () => {
+        $("rate-value").textContent = Number($("rate").value).toFixed(2);
+      });
+      $("voice-test").addEventListener("click", () =>
+        speak("Hi! Let's practice English. Ready when you are.")
+      );
+
+      // ---- reconocimiento de voz (navegador, manual: Responder / Detener) ----
+      // El corte automático del Web Speech API es poco fiable y trunca respuestas, así que
+      // el usuario controla el inicio y el fin. Mientras graba, si el navegador termina solo
+      // (silencio corto), se reanuda para no perder lo que sigue; solo el clic en Detener
+      // cierra el turno y envía el texto acumulado.
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      let recognition = null;
+      let isRecording = false;
+      let manualStop = false;
+      let finalTranscript = "";
+
+      function startRecording() {
+        if (!SpeechRecognition) {
+          showError($("conv-error"), "Tu navegador no soporta reconocimiento de voz (usa Chrome).");
+          return;
+        }
+        clearError($("conv-error"));
+        finalTranscript = "";
+        manualStop = false;
+        recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = (e) => {
+          let interim = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalTranscript += t + " ";
+            else interim += t;
+          }
+          $("heard").textContent = "Escuché: " + (finalTranscript + interim).trim();
+        };
+        recognition.onerror = (e) => {
+          // no-speech/aborted son transitorios mientras el usuario sigue grabando.
+          if (e.error === "no-speech" || e.error === "aborted") return;
+          // Error fatal (permiso denegado, red, etc.): cerramos para no reanudar en bucle.
+          manualStop = true;
+          isRecording = false;
+          showError($("conv-error"), "No se pudo escuchar: " + e.error);
+        };
+        recognition.onend = () => {
+          // El navegador cortó solo pero el usuario no apretó Detener: reanudamos.
+          if (!manualStop && isRecording) {
+            try {
+              recognition.start();
+            } catch (_) {}
+            return;
+          }
+          finishRecording();
+        };
+        recognition.start();
+        isRecording = true;
+        const btn = $("record");
+        btn.textContent = "⏹️ Detener";
+        btn.classList.add("danger");
+        $("conv-status").textContent = "Escuchando… habla y aprieta Detener al terminar.";
+      }
+
+      function stopRecording() {
+        manualStop = true;
+        isRecording = false;
+        $("record").disabled = true;
+        $("conv-status").textContent = "Procesando…";
+        try {
+          recognition.stop();
+        } catch (_) {
+          finishRecording();
+        }
+      }
+
+      async function finishRecording() {
+        isRecording = false;
+        const btn = $("record");
+        btn.textContent = "🎤 Responder";
+        btn.classList.remove("danger");
+        const text = finalTranscript.trim();
+        if (!text) {
+          $("conv-status").textContent = "";
+          btn.disabled = false;
+          showError($("conv-error"), "No se escuchó nada. Intenta de nuevo.");
+          return;
+        }
+        try {
+          const data = await api("POST", "/conversation/answer", {
+            conversation_id: conversationId,
+            text,
+          });
+          $("conv-status").textContent = "";
+          if (data.final) {
+            showFinal(data.final);
+          } else {
+            setQuestion(data.question);
+          }
+        } catch (e) {
+          showError($("conv-error"), e.message);
+          $("conv-status").textContent = "";
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // ---- API ----
+      async function api(method, path, body) {
+        const res = await fetch(path, {
+          method,
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) {
+          let detail = res.statusText;
+          try {
+            detail = (await res.json()).detail || detail;
+          } catch (_) {}
+          throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+        }
+        return res.status === 204 ? null : res.json();
+      }
+
+      // ---- configuraciones guardadas ----
+      async function loadConfigs() {
+        let configs = [];
+        try {
+          configs = await api("GET", "/conversation/configs");
+        } catch (e) {
+          // Postgres puede no estar arriba; no rompemos la vista.
+          $("configs-list").innerHTML = `<p class="muted">No se pudieron cargar las guardadas: ${e.message}</p>`;
+          return;
+        }
+        const select = $("config-select");
+        select.innerHTML = '<option value="">— Nueva (escribe abajo) —</option>';
+        const list = $("configs-list");
+        list.innerHTML = "";
+        configs.forEach((c) => {
+          const opt = document.createElement("option");
+          opt.value = String(c.id);
+          opt.textContent = c.name;
+          select.appendChild(opt);
+
+          const item = document.createElement("div");
+          item.className = "config-item";
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = c.name;
+          const del = document.createElement("button");
+          del.className = "secondary small danger";
+          del.textContent = "Borrar";
+          del.onclick = async () => {
+            await api("DELETE", `/conversation/configs/${c.id}`);
+            await loadConfigs();
+          };
+          item.append(name, del);
+          list.appendChild(item);
+        });
+        // Guarda los datos para rellenar al seleccionar.
+        select._configs = configs;
+      }
+
+      $("config-select").addEventListener("change", (e) => {
+        const id = e.target.value;
+        const configs = e.target._configs || [];
+        const found = configs.find((c) => String(c.id) === id);
+        if (found) {
+          $("ctx-name").value = found.name;
+          $("ctx-content").value = found.user_context;
+        } else {
+          $("ctx-name").value = "";
+          $("ctx-content").value = "";
+        }
+      });
+
+      $("ctx-save").addEventListener("click", async () => {
+        const name = $("ctx-name").value.trim();
+        const user_context = $("ctx-content").value.trim();
+        const status = $("ctx-status");
+        if (!name || !user_context) {
+          status.textContent = "Pon un nombre y un contexto para guardar.";
+          return;
+        }
+        status.textContent = "Guardando…";
+        try {
+          const selectedId = $("config-select").value;
+          if (selectedId) {
+            await api("PUT", `/conversation/configs/${selectedId}`, { name, user_context });
+          } else {
+            await api("POST", "/conversation/configs", { name, user_context });
+          }
+          status.textContent = "Guardado ✅";
+          await loadConfigs();
+        } catch (e) {
+          status.textContent = "Error: " + e.message;
+        }
+      });
+
+      // ---- iniciar conversación ----
+      $("start").addEventListener("click", async () => {
+        const error = $("setup-error");
+        clearError(error);
+        const user_context = $("ctx-content").value.trim();
+        if (!user_context) {
+          showError(error, "Escribe (o elige) un contexto para empezar.");
+          return;
+        }
+        const max_questions = Number($("questions").value) || 5;
+        $("start").disabled = true;
+        $("start").textContent = "Preparando…";
+        try {
+          const data = await api("POST", "/conversation/start", { user_context, max_questions });
+          conversationId = data.conversation_id;
+          hide($("setup"));
+          hide($("final"));
+          show($("active"));
+          setQuestion(data.question);
+        } catch (e) {
+          showError(error, e.message);
+        } finally {
+          $("start").disabled = false;
+          $("start").textContent = "▶️ Empezar conversación";
+        }
+      });
+
+      function setQuestion(text) {
+        $("question").textContent = text;
+        $("heard").textContent = "";
+        speak(text);
+      }
+
+      $("repeat").addEventListener("click", () => speak($("question").textContent));
+
+      // ---- responder (loop): un clic empieza, otro detiene y envía ----
+      $("record").addEventListener("click", () => {
+        if (isRecording) stopRecording();
+        else startRecording();
+      });
+
+      // ---- feedback final ----
+      function showFinal(final) {
+        hide($("active"));
+        show($("final"));
+        $("feedback").textContent = final.content_feedback || "";
+
+        const words = final.practice_words || [];
+        const wordsBlock = $("words-block");
+        const wordsEl = $("words");
+        wordsEl.innerHTML = "";
+        if (words.length) {
+          words.forEach((w) => {
+            const btn = document.createElement("button");
+            btn.className = "pill";
+            btn.textContent = w.hint ? `${w.word} · ${w.hint}` : w.word;
+            btn.onclick = () => speak(w.present || w.word);
+            wordsEl.appendChild(btn);
+          });
+          show(wordsBlock);
+        } else {
+          hide(wordsBlock);
+        }
+
+        const phrases = final.practice_phrases || [];
+        const phrasesBlock = $("phrases-block");
+        const phrasesEl = $("phrases");
+        phrasesEl.innerHTML = "";
+        if (phrases.length) {
+          phrases.forEach((p) => {
+            const div = document.createElement("div");
+            div.className = "phrase";
+            const line = document.createElement("div");
+            const del = document.createElement("del");
+            del.textContent = p.original;
+            const ins = document.createElement("ins");
+            ins.textContent = " → " + p.suggestion;
+            line.append(del, ins);
+            div.appendChild(line);
+            if (p.note) {
+              const note = document.createElement("div");
+              note.className = "muted";
+              note.textContent = p.note;
+              div.appendChild(note);
+            }
+            phrasesEl.appendChild(div);
+          });
+          show(phrasesBlock);
+        } else {
+          hide(phrasesBlock);
+        }
+      }
+
+      $("restart").addEventListener("click", () => {
+        conversationId = null;
+        hide($("final"));
+        show($("setup"));
+        loadConfigs();
+      });
+
+      // ---- init ----
+      loadConfigs();
+    </script>
+  </body>
+</html>

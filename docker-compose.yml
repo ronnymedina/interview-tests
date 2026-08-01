@@ -1,0 +1,50 @@
+# Stack de desarrollo del módulo migrado (app/): Postgres + el servicio con hot
+# reload. Levantar con:  docker compose up --build
+#
+# Las variables sensibles salen de .env (env_file), no se hornean en la imagen.
+# DATABASE_URL se define acá para apuntar al servicio `db` de esta red.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: review
+      POSTGRES_PASSWORD: review
+      POSTGRES_DB: review_ingles
+    ports:
+      # 5434 en el host: el 5432 y el 5433 suelen estar tomados por otros
+      # Postgres locales. Cambialo si te choca.
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # El .sql crea la tabla al inicializar el volumen por primera vez.
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U review -d review_ingles"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      target: development
+    env_file:
+      - .env
+    environment:
+      # Dentro de la red de compose, el host de la BD es el servicio `db`.
+      DATABASE_URL: postgresql://review:review@db:5432/review_ingles
+    ports:
+      - "8000:8000"
+    volumes:
+      # Código montado para que --reload reaccione a los cambios. El .venv de la
+      # imagen se preserva con un volumen anónimo (no lo pisa el bind del host).
+      - ./app:/app/app
+      - ./config.py:/app/config.py
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

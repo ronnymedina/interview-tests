@@ -1,0 +1,35 @@
+# Secretos y estado local: NUNCA entran a la imagen.
+.env
+*.db
+.venv/
+
+# Caches y metadatos.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.git/
+.superpowers/
+
+# Código legacy de la raíz que NO forma parte de la imagen de app/.
+main.py
+conversation.py
+db.py
+scoring.py
+speech.py
+azure_speech.py
+trace_demo.py
+test_api.py
+test_conversation.py
+test_db.py
+test_scoring.py
+test_speech.py
+conftest.py
+app.js
+index.html
+style.css
+
+# Docs y notas.
+docs/
+*.md

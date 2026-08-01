@@ -17,13 +17,31 @@ AZURE_SPEECH_REGION: str = os.getenv("AZURE_SPEECH_REGION", "eastus")
 # Idioma que se evalua. "en-US" es el que tiene soporte mas completo (silabas, prosodia).
 SPEECH_LANGUAGE: str = os.getenv("SPEECH_LANGUAGE", "en-US")
 
+# Legacy (primera version, raiz): SQLite de los intentos de pronunciacion.
 DB_PATH: str = os.getenv("DB_PATH", "attempts.db")
+
+# Modulo migrado (app/): Postgres. Cadena de conexion que consume psycopg,
+# p. ej. "postgresql://user:pass@host:5432/dbname". En docker-compose la inyecta
+# el servicio; en local apunta al Postgres que quieras.
+DATABASE_URL: str = os.getenv(
+    "DATABASE_URL", "postgresql://review:review@localhost:5432/review_ingles"
+)
+
 PORT: int = int(os.getenv("PORT", "8000"))
 
 # Credenciales de Gemini para la modalidad de conversacion. Sin la key el servidor
 # arranca igual, pero el primer intento de conversacion devuelve un error explicativo.
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+# Modelo del chat en formato "proveedor:modelo" que consume init_chat_model. Cambiar de
+# proveedor (p. ej. "openai:gpt-5-nano") es cambiar esta variable, no el codigo.
+CHAT_MODEL: str = os.getenv("CHAT_MODEL", "google_genai:gemini-2.5-flash")
+
+# LangSmith (observabilidad). Estas variables NO se leen aqui a proposito: LangChain las
+# consume directamente del entorno. El load_dotenv() de arriba ya carga el .env, asi que
+# con declararlas en .env basta para que las trazas se activen. Se listan para que este
+# archivo siga siendo el mapa unico de todas las env del proyecto:
+#   LANGSMITH_TRACING=true   LANGSMITH_ENDPOINT   LANGSMITH_API_KEY   LANGSMITH_PROJECT
 
 # --- Piloto demo: tarifas, presupuesto y cuota (todas configurables por entorno) --------
 # Las tarifas son aproximaciones para el piloto; el costo real se ajusta cambiando la env,
