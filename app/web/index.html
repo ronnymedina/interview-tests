@@ -4,19 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Practica tu inglés hablado</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap"
-      rel="stylesheet"
-    />
     <style>
       :root {
-        --cream: #faf6ef; --ivory: #fffdf8; --ink: #2e2a26;
-        --gold: #b8963f; --gold-deep: #8a6d22; --gold-soft: #eadfc4; --muted: #8a8278; --sage: #6e8b6a;
-        --serif: "Fraunces", Georgia, "Times New Roman", serif;
-        --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-        --radius: 16px; --shadow: 0 1px 2px rgba(46,42,38,.04), 0 8px 24px rgba(46,42,38,.06);
+        /* Paleta estilo Apple: gris claro de fondo, tarjetas blancas, acento azul. */
+        --cream: #f5f5f7; --ivory: #ffffff; --ink: #1d1d1f;
+        --gold: #0071e3; --gold-deep: #0060c0; --gold-soft: #e3e3e6; --muted: #6e6e73; --sage: #30a46c;
+        /* Colores semánticos del score de pronunciación (independientes del acento azul). */
+        --ok: #248a3d; --warn: #b26a00; --bad: #d93a2f;
+        /* SF Pro (system-ui en Apple); mantenemos el nombre --serif para no tocar cada uso. */
+        --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
+        --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+        --radius: 18px; --shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
       }
       * { box-sizing: border-box; }
       body {
@@ -44,7 +42,7 @@
       }
       .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
       button {
-        font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 10px;
+        font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 12px;
         border: 1px solid transparent; background: var(--gold-deep); color: #fff; cursor: pointer;
         transition: filter .15s ease, transform .05s ease;
       }
@@ -60,25 +58,38 @@
       .progress { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 26px; }
       .progress span { width: 10px; height: 10px; border-radius: 50%; background: var(--gold-soft); }
       .progress span.done { background: var(--gold); }
-      .progress span.active { background: var(--gold); box-shadow: 0 0 0 4px rgba(184,150,63,.18); }
+      .progress span.active { background: var(--gold); box-shadow: 0 0 0 4px rgba(0,113,227,.18); }
       .progress i { width: 26px; height: 1px; background: var(--gold-soft); }
       .stage { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 8px 0 4px; }
       .oval {
-        width: 132px; height: 168px; border-radius: 50%;
-        background: radial-gradient(ellipse at 50% 38%, #d9bd77, var(--gold));
-        box-shadow: 0 10px 30px rgba(184,150,63,.28);
+        width: 150px; height: 150px; border-radius: 50%;
+        background: radial-gradient(circle at 38% 32%, #d9a8ff, #9a6bff 55%, #ff7eb3);
+        box-shadow: 0 10px 34px rgba(154,107,255,.35);
         animation: breathe 4.5s ease-in-out infinite;
         transition: transform .12s ease, box-shadow .3s ease, filter .3s ease;
       }
-      .oval.speaking { box-shadow: 0 0 0 10px rgba(184,150,63,.12), 0 12px 34px rgba(184,150,63,.4); animation: none; }
+      /* Hablando (tutor): pulso continuo y visible mientras dura la voz del navegador. */
+      .oval.speaking { box-shadow: 0 0 0 8px rgba(154,107,255,.14), 0 12px 34px rgba(154,107,255,.45); animation: speakpulse 1.1s ease-in-out infinite; }
+      .oval.thinking { box-shadow: 0 0 0 6px rgba(154,107,255,.10), 0 10px 30px rgba(154,107,255,.32); animation: breathe 2.2s ease-in-out infinite; }
+      @keyframes speakpulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
       .oval.beat { transform: scale(1.06); }
+      /* Grabando: orbe verde LLENO. El tamaño y el halo los maneja Oval.level() en vivo
+         según el volumen real del micrófono (transición rápida para que se sienta reactivo).
+         Sin animación CSS aquí: una animación sobre transform pisaría el valor del JS. */
       .oval.recording {
-        background: var(--ivory); border: 2px solid var(--gold-soft);
-        box-shadow: 0 0 0 8px rgba(110,139,106,.12); animation: ring 1.8s ease-in-out infinite;
+        background: radial-gradient(circle at 42% 34%, #86e3ac, #30a46c 62%, #1f8a56);
+        box-shadow: 0 0 0 6px rgba(48,164,108,.18), 0 10px 30px rgba(48,164,108,.42);
+        transition: transform .08s ease-out, box-shadow .08s ease-out;
+        animation: none;
       }
       @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-      @keyframes ring { 0%,100% { box-shadow: 0 0 0 6px rgba(110,139,106,.10); } 50% { box-shadow: 0 0 0 12px rgba(110,139,106,.18); } }
       .counter { font-family: var(--serif); font-size: 1.1rem; color: var(--muted); min-height: 1.4em; }
+      /* "Pregunta X de N" dentro del paso de práctica. */
+      .q-progress { text-align: center; font-size: .82rem; font-weight: 600; color: var(--gold); letter-spacing: .03em; text-transform: uppercase; min-height: 1.1em; margin-bottom: 6px; }
+      /* Indicador de carga mientras se analiza la respuesta / se prepara el feedback. */
+      .loading { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; color: var(--muted); font-size: .95rem; }
+      .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--gold-soft); border-top-color: var(--gold); animation: spin .8s linear infinite; flex-shrink: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
       .scores { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 22px; }
@@ -86,8 +97,45 @@
       .score b { font-family: var(--serif); font-size: 1.6rem; display: block; }
       .score.high b { color: var(--sage); }
       .score small { color: var(--muted); }
-      .prose { white-space: pre-wrap; }
-      .pill { display: inline-block; margin: 4px 8px 0 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); color: var(--ink); cursor: pointer; font-size: .92rem; }
+      /* Feedback en Markdown renderizado (headings, listas, negritas). */
+      .prose h1, .prose h2, .prose h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin: 18px 0 8px; }
+      .prose h1 { font-size: 1.35rem; } .prose h2 { font-size: 1.15rem; } .prose h3 { font-size: 1.02rem; }
+      .prose > :first-child { margin-top: 0; }
+      .prose p { margin: 10px 0; }
+      .prose ul, .prose ol { margin: 10px 0; padding-left: 22px; }
+      .prose li { margin: 4px 0; }
+      .prose strong { font-weight: 600; }
+      .prose em { font-style: italic; }
+      .prose code { background: #ececed; padding: 1px 6px; border-radius: 6px; font-size: .9em; }
+      /* Palabra clicable: muestra un altavoz para indicar que se reproduce. */
+      .pill { display: inline-flex; align-items: center; gap: 7px; margin: 5px 8px 0 0; padding: 8px 14px 8px 12px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); color: var(--ink); cursor: pointer; font-size: .92rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: border-color .15s ease, color .15s ease; }
+      .pill:hover { border-color: var(--gold); color: var(--gold); }
+      .pill .spk { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0,113,227,.10); color: var(--gold); font-size: .8rem; flex-shrink: 0; }
+      /* Pronunciación palabra por palabra (datos objetivos de Azure). */
+      .pron-words { display: flex; flex-wrap: wrap; gap: 14px 16px; margin-top: 8px; }
+      .word-wrapper { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+      .word-head { display: inline-flex; align-items: center; gap: 4px; }
+      .word-head .word { font: inherit; font-weight: 600; font-size: 1rem; padding: 2px 4px; background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer; }
+      .word-head .word:hover { filter: none; opacity: .8; }
+      .word.good { color: var(--ok); border-bottom-color: rgba(36,138,61,.4); }
+      .word.fair { color: var(--warn); border-bottom-color: rgba(178,106,0,.45); }
+      .word.poor { color: var(--bad); border-bottom-color: rgba(217,58,47,.5); }
+      .word.unknown { color: var(--muted); }
+      .word-head .speak { font: inherit; font-size: .82rem; padding: 2px; background: transparent; border: none; cursor: pointer; }
+      .word-head .speak:hover { filter: none; transform: scale(1.15); }
+      .ipa { display: flex; gap: 3px; font-size: .82rem; color: var(--muted); padding-left: 4px; }
+      .ipa .sound.good { color: var(--ok); }
+      .ipa .sound.fair { color: var(--warn); }
+      .ipa .sound.poor { color: var(--bad); font-weight: 600; }
+      .phonemes { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 0 4px; }
+      .phonemes.hidden { display: none; }
+      .phoneme { font-size: .76rem; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); }
+      .phoneme.good { color: var(--ok); border-color: rgba(36,138,61,.35); }
+      .phoneme.fair { color: var(--warn); border-color: rgba(178,106,0,.4); }
+      .phoneme.poor { color: var(--bad); border-color: rgba(217,58,47,.45); }
+      .pron-legend { display: flex; gap: 16px; margin-top: 16px; font-size: .8rem; color: var(--muted); }
+      .pron-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+      .dot.good { background: var(--ok); } .dot.fair { background: var(--warn); } .dot.poor { background: var(--bad); }
       .phrase { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold); }
       .phrase del { color: #b4402f; text-decoration: line-through; } .phrase ins { color: var(--sage); text-decoration: none; }
       button.on { background: var(--gold-deep); color: #fff; border-color: var(--gold-deep); }
@@ -142,6 +190,7 @@
 
         <!-- Paso 3: Práctica -->
         <section id="step-talk" class="card step hidden">
+          <div id="q-progress" class="q-progress" role="status"></div>
           <div class="stage">
             <div id="oval" class="oval"></div>
             <div id="counter" class="counter"></div>
@@ -152,6 +201,10 @@
             <button id="repeat" type="button" class="ghost small">Repetir pregunta</button>
             <button id="talk-btn" type="button">Responder</button>
           </div>
+          <div id="talk-loading" class="loading hidden" role="status" aria-live="polite">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="talk-loading-text">Analizando tu respuesta…</span>
+          </div>
           <div id="talk-error" class="error hidden" style="text-align:center"></div>
         </section>
 
@@ -160,6 +213,17 @@
           <h1>Tu resultado</h1>
           <div id="scores" class="scores hidden"></div>
           <div id="feedback" class="prose"></div>
+
+          <div id="pron-block" class="hidden">
+            <h2 style="margin-top:26px">Tu pronunciación, palabra por palabra</h2>
+            <p class="muted">Cada sonido va coloreado por su score de Azure. Toca una palabra para ver el detalle, o 🔊 para escucharla.</p>
+            <div id="pron-words" class="pron-words"></div>
+            <div class="pron-legend">
+              <span><i class="dot good"></i>Bien</span>
+              <span><i class="dot fair"></i>Regular</span>
+              <span><i class="dot poor"></i>A mejorar</span>
+            </div>
+          </div>
 
           <div id="words-block" class="hidden">
             <h2 style="margin-top:26px">Palabras para practicar</h2>
@@ -311,15 +375,33 @@
       // ---- Óvalo tutor: reposo / hablando (pulsa con la voz) / grabando ----
       const Oval = {
         el: null,
-        init() { this.el = $("oval"); },
-        idle() { this.el.className = "oval"; },
-        speaking() { this.el.className = "oval speaking"; },
+        _reduceMotion: false,
+        init() {
+          this.el = $("oval");
+          this._reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        },
+        // Limpia el tamaño/halo en vivo que deja el estado de grabación.
+        _clearLive() { this.el.style.transform = ""; this.el.style.boxShadow = ""; },
+        idle() { this._clearLive(); this.el.className = "oval"; },
+        speaking() { this._clearLive(); this.el.className = "oval speaking"; },
+        thinking() { this._clearLive(); this.el.className = "oval thinking"; },
         pulse() {
           // Un latido por cada límite de palabra del TTS (onboundary).
           this.el.classList.add("beat");
           setTimeout(() => this.el && this.el.classList.remove("beat"), 130);
         },
-        recording() { this.el.className = "oval recording"; },
+        recording() { this._clearLive(); this.el.className = "oval recording"; },
+        // Reacciona al volumen del micrófono: el orbe pulsa con tu voz SIN crecer de más.
+        // Mismo tamaño base que "hablando"; el halo es chico y fijo (no se desborda), solo
+        // varía un poco su intensidad. `rms` típico de voz ~0.02–0.2.
+        level(rms) {
+          if (this._reduceMotion || !this.el.classList.contains("recording")) return;
+          const scale = Math.min(1 + rms * 2.2, 1.09);
+          const glow = Math.min(0.18 + rms * 1.1, 0.42);
+          this.el.style.transform = `scale(${scale.toFixed(3)})`;
+          this.el.style.boxShadow =
+            `0 0 0 6px rgba(48,164,108,${glow.toFixed(2)}), 0 10px 30px rgba(48,164,108,.42)`;
+        },
       };
 
       // Habla una pregunta como el tutor: el óvalo pulsa mientras dura la voz.
@@ -398,7 +480,12 @@
           this.source = this.audioCtx.createMediaStreamSource(this.stream);
           this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
           this.processor.onaudioprocess = (e) => {
-            this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+            const data = e.inputBuffer.getChannelData(0);
+            this.chunks.push(new Float32Array(data));
+            // Nivel de voz (RMS) del buffer para animar el óvalo en vivo mientras habla.
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+            Oval.level(Math.sqrt(sum / data.length));
           };
           this.source.connect(this.processor);
           this.processor.connect(this.audioCtx.destination);
@@ -464,6 +551,9 @@
         if (reason === "quota") {
           $("banner-title").textContent = "Llegaste al límite de la demo";
           $("banner-text").textContent = "Ya usaste tus conversaciones de práctica. ¡Gracias por probarla!";
+        } else if (reason === "rate_limited") {
+          $("banner-title").textContent = "Demasiados intentos seguidos";
+          $("banner-text").textContent = "Vas muy rápido. Espera un momento y recarga la página para continuar.";
         } else {
           $("banner-title").textContent = "En pausa por el momento";
           $("banner-text").textContent = "La demo está descansando. Vuelve a intentarlo más tarde.";
@@ -472,6 +562,7 @@
 
       // ---- Paso 3: iniciar conversación (POST /start) ----
       let conversationId = null;
+      let currentQuestion = 0, totalQuestions = 0; // para "Pregunta X de N" y el mensaje de carga
 
       $("ctx-start") && $("ctx-start").addEventListener("click", async () => {
         const err = $("ctx-error");
@@ -483,7 +574,7 @@
           const data = await Api.request("POST", "/conversation/start", { json: { user_context } });
           conversationId = data.conversation_id;
           Stepper.go("talk");
-          setQuestion(data.question);
+          setQuestion(data.question, data);
         } catch (e) {
           if (e instanceof ApiError && e.status === 429) { showBanner(e.reason); return; }
           err.textContent = e.message; err.classList.remove("hidden");
@@ -492,12 +583,31 @@
         }
       });
 
-      function setQuestion(text) {
+      function setQuestion(text, meta) {
         $("question").textContent = text;
         $("heard").textContent = "";
+        // "Pregunta X de N" cuando el backend manda el índice/total.
+        if (meta && meta.question_number && meta.total_questions) {
+          currentQuestion = meta.question_number;
+          totalQuestions = meta.total_questions;
+          $("q-progress").textContent = `Pregunta ${currentQuestion} de ${totalQuestions}`;
+        }
         speakAsTutor(text);
       }
       $("repeat").addEventListener("click", () => speakAsTutor($("question").textContent));
+
+      // Muestra/oculta el estado de carga mientras se analiza la respuesta o se prepara el feedback.
+      function showTalkLoading(message) {
+        $("talk-loading-text").textContent = message;
+        $("talk-loading").classList.remove("hidden");
+        $("repeat").disabled = true;
+        Oval.thinking();
+      }
+      function hideTalkLoading() {
+        $("talk-loading").classList.add("hidden");
+        $("repeat").disabled = false;
+        Oval.idle();
+      }
 
       // ---- Paso 3: responder (grabar → enviar multipart a /answer) ----
       let recording = false;
@@ -519,21 +629,65 @@
 
       async function sendAnswer(wavBlob, transcript) {
         const btn = $("talk-btn");
-        btn.textContent = "Responder"; btn.disabled = false; recording = false;
+        recording = false;
         $("heard").textContent = "";
+        // El análisis (Gemini + pronunciación de Azure) tarda: mostramos carga clara.
+        // Si esta era la última pregunta, lo que viene es el feedback final.
+        const isLast = totalQuestions && currentQuestion >= totalQuestions;
+        btn.textContent = "Procesando…"; btn.disabled = true;
+        showTalkLoading(isLast ? "Preparando tu feedback…" : "Analizando tu respuesta…");
         const form = new FormData();
         form.append("conversation_id", conversationId);
         form.append("transcript", transcript || "");
         form.append("audio", wavBlob, "answer.wav");
         try {
           const data = await Api.request("POST", "/conversation/answer", { form });
+          hideTalkLoading();
+          btn.textContent = "Responder"; btn.disabled = false;
           if (data.final) showFinal(data.final);
-          else setQuestion(data.question);
+          else setQuestion(data.question, data);
         } catch (e) {
+          hideTalkLoading();
+          btn.textContent = "Responder"; btn.disabled = false;
           if (e instanceof ApiError && e.status === 429) { showBanner(e.reason); return; }
           $("talk-error").textContent = e.message;
           $("talk-error").classList.remove("hidden");
         }
+      }
+
+      // ---- Render ligero de Markdown (headings, listas, negritas) sin dependencias ----
+      const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      function inlineMd(s) {
+        return s
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, "$1<em>$2</em>")
+          .replace(/`([^`]+)`/g, "<code>$1</code>");
+      }
+      function renderMarkdown(md) {
+        if (!md) return "";
+        const lines = escapeHtml(md).replace(/\r\n/g, "\n").split("\n");
+        const out = []; let list = null, para = [];
+        const flushPara = () => { if (para.length) { out.push("<p>" + inlineMd(para.join(" ")) + "</p>"); para = []; } };
+        const flushList = () => { if (list) { out.push("</" + list + ">"); list = null; } };
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) { flushPara(); flushList(); continue; }
+          let m;
+          if ((m = line.match(/^(#{1,3})\s+(.*)$/))) {
+            flushPara(); flushList();
+            const n = m[1].length; out.push(`<h${n}>` + inlineMd(m[2]) + `</h${n}>`);
+          } else if ((m = line.match(/^[-*]\s+(.*)$/))) {
+            flushPara(); if (list !== "ul") { flushList(); out.push("<ul>"); list = "ul"; }
+            out.push("<li>" + inlineMd(m[1]) + "</li>");
+          } else if ((m = line.match(/^\d+\.\s+(.*)$/))) {
+            flushPara(); if (list !== "ol") { flushList(); out.push("<ol>"); list = "ol"; }
+            out.push("<li>" + inlineMd(m[1]) + "</li>");
+          } else {
+            flushList(); para.push(line);
+          }
+        }
+        flushPara(); flushList();
+        return out.join("\n");
       }
 
       // ---- Pantalla final: feedback + scores (Azure) + palabras + frases ----
@@ -541,7 +695,7 @@
 
       function showFinal(final) {
         Stepper.go("final");
-        $("feedback").textContent = final.content_feedback || "";
+        $("feedback").innerHTML = renderMarkdown(final.content_feedback || "");
 
         // Scores de Azure (pueden faltar: pronunciation === null).
         const scoresEl = $("scores"); scoresEl.innerHTML = "";
@@ -560,8 +714,92 @@
           scoresEl.classList.add("hidden");
         }
 
+        renderPronunciation(pron && pron.words ? pron.words : []);
         renderWords(final.practice_words || []);
         renderPhrases(final.practice_phrases || []);
+      }
+
+      // ---- Pronunciación palabra por palabra (datos objetivos de Azure) ----
+      // Portado del frontend legacy: cada palabra se colorea por su accuracy, con los
+      // sonidos (IPA) visibles y un detalle expandible con el score de cada fonema.
+      function scoreClass(score) {
+        if (score === null || score === undefined) return "unknown";
+        if (score >= 80) return "good";
+        if (score >= 60) return "fair";
+        return "poor";
+      }
+      function formatScore(score) {
+        return score === null || score === undefined ? "—" : Math.round(score);
+      }
+      function wordClass(word) {
+        if (word.error_type === "Omission") return "unknown";
+        return scoreClass(word.accuracy);
+      }
+      function wordTitle(word) {
+        const messages = {
+          Mispronunciation: "Mal pronunciada",
+          UnexpectedBreak: "Pausa inesperada antes de esta palabra",
+          MissingBreak: "Faltó una pausa antes de esta palabra",
+          Monotone: "Entonación plana",
+        };
+        const note = messages[word.error_type];
+        const score = `Accuracy: ${formatScore(word.accuracy)}`;
+        return note ? `${score} — ${note}` : score;
+      }
+      function renderWord(word) {
+        const wrapper = document.createElement("span");
+        wrapper.className = "word-wrapper";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `word ${wordClass(word)}`;
+        button.textContent = word.word;
+        button.title = wordTitle(word);
+
+        const listen = document.createElement("button");
+        listen.type = "button"; listen.className = "speak";
+        listen.textContent = "🔊"; listen.title = "Escuchar";
+        listen.setAttribute("aria-label", `Escuchar ${word.word}`);
+        listen.addEventListener("click", () => Tts.speak(word.word));
+
+        const head = document.createElement("div");
+        head.className = "word-head";
+        head.append(button, listen);
+
+        // Los sonidos (IPA) en orden, cada uno coloreado por su score: se ve QUÉ parte falló.
+        const ipa = document.createElement("div");
+        ipa.className = "ipa";
+        for (const phoneme of word.phonemes || []) {
+          const sound = document.createElement("span");
+          sound.className = `sound ${scoreClass(phoneme.accuracy)}`;
+          sound.textContent = phoneme.phoneme;
+          sound.title = `${phoneme.phoneme}: ${formatScore(phoneme.accuracy)}`;
+          ipa.appendChild(sound);
+        }
+
+        // Detalle con el número exacto de cada sonido, al hacer clic en la palabra.
+        const detail = document.createElement("div");
+        detail.className = "phonemes hidden";
+        if (!word.phonemes || word.phonemes.length === 0) {
+          detail.textContent = "Sin detalle de sonidos.";
+        } else {
+          for (const phoneme of word.phonemes) {
+            const chip = document.createElement("span");
+            chip.className = `phoneme ${scoreClass(phoneme.accuracy)}`;
+            chip.textContent = `${phoneme.phoneme} ${formatScore(phoneme.accuracy)}`;
+            detail.appendChild(chip);
+          }
+        }
+
+        button.addEventListener("click", () => detail.classList.toggle("hidden"));
+        wrapper.append(head, ipa, detail);
+        return wrapper;
+      }
+      function renderPronunciation(words) {
+        const block = $("pron-block"), el = $("pron-words"); el.innerHTML = "";
+        if (!words.length) { block.classList.add("hidden"); return; }
+        words.forEach((w) => el.appendChild(renderWord(w)));
+        block.classList.remove("hidden");
       }
 
       function renderWords(words) {
@@ -570,7 +808,13 @@
         words.forEach((w) => {
           const b = document.createElement("button");
           b.className = "pill";
-          b.textContent = w.hint ? `${w.word} · ${w.hint}` : w.word;
+          b.title = "Toca para escuchar";
+          b.setAttribute("aria-label", `Escuchar ${w.word}`);
+          const spk = document.createElement("span");
+          spk.className = "spk"; spk.textContent = "🔊"; spk.setAttribute("aria-hidden", "true");
+          const label = document.createElement("span");
+          label.textContent = w.hint ? `${w.word} · ${w.hint}` : w.word;
+          b.append(spk, label);
           b.onclick = () => Tts.speak(w.present || w.word);
           el.appendChild(b);
         });
