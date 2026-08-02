@@ -48,6 +48,18 @@ _SCHEMA: tuple[str, ...] = (
         conversation_id TEXT NOT NULL
     );
     """,
+    """
+    CREATE TABLE IF NOT EXISTS pilot_feedback (
+        id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        user_id       TEXT NOT NULL,
+        liked         BOOLEAN,
+        rating        INTEGER,
+        comment       TEXT NOT NULL DEFAULT '',
+        wants_more    BOOLEAN,
+        suggestions   TEXT NOT NULL DEFAULT ''
+    );
+    """,
 )
 
 
