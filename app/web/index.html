@@ -70,7 +70,7 @@
         animation: breathe 4.5s ease-in-out infinite;
         transition: transform .12s ease, box-shadow .3s ease, filter .3s ease;
       }
-      .oval.speaking { box-shadow: 0 0 0 10px rgba(184,150,63,.12), 0 12px 34px rgba(184,150,63,.4); }
+      .oval.speaking { box-shadow: 0 0 0 10px rgba(184,150,63,.12), 0 12px 34px rgba(184,150,63,.4); animation: none; }
       .oval.beat { transform: scale(1.06); }
       .oval.recording {
         background: var(--ivory); border: 2px solid var(--gold-soft);
@@ -270,8 +270,8 @@
 
       // Habla una pregunta como el tutor: el óvalo pulsa mientras dura la voz.
       function speakAsTutor(text) {
-        Oval.speaking();
         Tts.speak(text, {
+          onstart: () => Oval.speaking(),
           onboundary: () => Oval.pulse(),
           onend: () => Oval.idle(),
         });
