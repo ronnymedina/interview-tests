@@ -67,3 +67,10 @@ USER_CONVERSATION_QUOTA: int = int(os.getenv("USER_CONVERSATION_QUOTA", "3"))
 # se declaran acá para mantener config.py como mapa único de la configuración.
 MAX_ANSWER_SECONDS: int = int(os.getenv("MAX_ANSWER_SECONDS", "30"))
 MAX_QUESTIONS: int = int(os.getenv("MAX_QUESTIONS", "5"))
+
+# --- Rate limiting por IP (protección del servidor, independiente de la cuota/presupuesto).
+# Topes de requests por minuto y por IP: uno global para todo el tráfico, y otros más
+# estrictos para los endpoints caros (arrancan/avanzan la conversación con LLM + Azure).
+RATE_LIMIT_GLOBAL_PER_MIN: int = int(os.getenv("RATE_LIMIT_GLOBAL_PER_MIN", "60"))
+RATE_LIMIT_START_PER_MIN: int = int(os.getenv("RATE_LIMIT_START_PER_MIN", "10"))
+RATE_LIMIT_ANSWER_PER_MIN: int = int(os.getenv("RATE_LIMIT_ANSWER_PER_MIN", "20"))

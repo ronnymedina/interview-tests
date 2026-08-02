@@ -17,12 +17,14 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_core.callbacks import get_usage_metadata_callback
 
 import config
 from app import conversation
+from app.ratelimit import IpRateLimiter, client_ip
 from app.conversation import (
     ConversationConfig,
     ConversationError,
@@ -72,6 +74,21 @@ if _speech_service is None:
 
 _feedback_repository = FeedbackRepository(_storage)
 
+# Rate limiter por IP (en memoria): protege el servidor de floods, aparte de la cuota/
+# presupuesto por usuario. Los endpoints caros (start/answer) tienen su propio tope.
+_rate_limiter = IpRateLimiter(
+    {
+        "global": config.RATE_LIMIT_GLOBAL_PER_MIN,
+        "start": config.RATE_LIMIT_START_PER_MIN,
+        "answer": config.RATE_LIMIT_ANSWER_PER_MIN,
+    }
+)
+# (método, ruta) -> scope extra (además del 'global' que aplica a todo el tráfico).
+_RATE_SCOPES = {
+    ("POST", "/conversation/start"): "start",
+    ("POST", "/conversation/answer"): "answer",
+}
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -85,6 +102,27 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="review-ingles", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    """Aplica el rate limit por IP antes de cada request: el tope global a todo el tráfico
+    y, en los endpoints caros, además su tope específico. Al excederse corta con 429 y un
+    motivo tipado ('rate_limited') más el header Retry-After."""
+    ip = client_ip(request)
+    scopes = ["global"]
+    extra = _RATE_SCOPES.get((request.method, request.url.path))
+    if extra:
+        scopes.append(extra)
+    for scope in scopes:
+        retry_after = _rate_limiter.hit(ip, scope)
+        if retry_after is not None:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": {"reason": "rate_limited"}},
+                headers={"Retry-After": str(retry_after)},
+            )
+    return await call_next(request)
 
 
 def get_conversation_service() -> ConversationService:
@@ -160,7 +198,9 @@ def conversation_start(
 
     try:
         with get_usage_metadata_callback() as callback:
-            conversation_id, question = service.start(payload.user_context, payload.max_questions)
+            conversation_id, question, question_number, total_questions = service.start(
+                payload.user_context, payload.max_questions
+            )
     except ConversationError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
 
@@ -168,7 +208,12 @@ def conversation_start(
     input_tokens, output_tokens = _gemini_tokens(callback)
     limits.record_gemini_usage(user_id, conversation_id, "synthesis", input_tokens, output_tokens)
 
-    return {"conversation_id": conversation_id, "question": question}
+    return {
+        "conversation_id": conversation_id,
+        "question": question,
+        "question_number": question_number,
+        "total_questions": total_questions,
+    }
 
 
 @app.post("/conversation/answer")
