@@ -429,21 +429,38 @@
 
       // ---- Paso 2: dictado opcional del contexto + navegación ----
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      $("ctx-back") && $("ctx-back").addEventListener("click", () => Stepper.go("voice"));
+
+      // Dictado por voz del contexto. Es un TOGGLE: el mismo botón empieza y detiene, y nunca
+      // se bloquea, así siempre hay forma de cancelar. Se guarda la referencia al reconocimiento
+      // para poder pararlo (antes se quedaba escuchando sin salida).
+      let dictation = null;
+      function stopDictation() {
+        if (dictation) { try { dictation.stop(); } catch (_) {} }
+      }
+      $("ctx-back") && $("ctx-back").addEventListener("click", () => { stopDictation(); Stepper.go("voice"); });
       $("ctx-dictate") && $("ctx-dictate").addEventListener("click", () => {
+        if (dictation) { stopDictation(); return; }  // ya estaba escuchando -> detener
         if (!SR) { $("ctx-status").textContent = "Tu navegador no permite dictar (usa Chrome)."; return; }
         const rec = new SR();
         rec.lang = "es-ES"; rec.interimResults = false; rec.continuous = true;
-        const box = $("ctx-content");
-        $("ctx-status").textContent = "Escuchando… habla y para cuando termines.";
+        const box = $("ctx-content"), btn = $("ctx-dictate");
         rec.onresult = (e) => {
           for (let i = e.resultIndex; i < e.results.length; i++)
             if (e.results[i].isFinal) box.value += (box.value ? " " : "") + e.results[i][0].transcript;
         };
-        rec.onend = () => { $("ctx-status").textContent = ""; $("ctx-dictate").disabled = false; };
-        rec.onerror = () => { $("ctx-status").textContent = ""; $("ctx-dictate").disabled = false; };
+        // Se llama al detener manualmente, al cortar por silencio, o ante un error: la UI vuelve
+        // siempre al estado inicial (botón "Dictar por voz", habilitado).
+        const reset = () => {
+          dictation = null;
+          btn.textContent = "Dictar por voz"; btn.classList.remove("on");
+          $("ctx-status").textContent = "";
+        };
+        rec.onend = reset;
+        rec.onerror = reset;
+        dictation = rec;
         rec.start();
-        $("ctx-dictate").disabled = true;
+        btn.textContent = "Detener dictado"; btn.classList.add("on");
+        $("ctx-status").textContent = "Escuchando… toca «Detener dictado» cuando termines.";
       });
 
       // ---- Grabación: WAV PCM 16-bit mono vía AudioContext, en paralelo al reconocimiento ----
@@ -565,6 +582,7 @@
       let currentQuestion = 0, totalQuestions = 0; // para "Pregunta X de N" y el mensaje de carga
 
       $("ctx-start") && $("ctx-start").addEventListener("click", async () => {
+        stopDictation();  // si estaba dictando, cortar antes de arrancar la práctica
         const err = $("ctx-error");
         err.classList.add("hidden");
         const user_context = $("ctx-content").value.trim();
