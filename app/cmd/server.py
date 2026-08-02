@@ -16,8 +16,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
+from langchain_core.callbacks import get_usage_metadata_callback
 
 import config
 from app import conversation
@@ -27,6 +28,8 @@ from app.conversation import (
     ConversationRepository,
     ConversationService,
 )
+from app.limits import LimitsService, build_limits_service
+from app.speech import SpeechService, build_speech_service
 from app.storage import PostgresStorage
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,17 @@ _conversation_service = _build_conversation_service()
 # está disponible; si Postgres está caído, el error aparece al ejecutar la consulta.
 _storage = PostgresStorage(config.DATABASE_URL)
 _repository = ConversationRepository(_storage)
+
+# LimitsService: SIEMPRE se construye (la cuota/presupuesto son parte del piloto). Comparte el
+# mismo almacenamiento perezoso; si Postgres está caído, la consulta falla al ejecutarse y el
+# endpoint corta conservador.
+_limits_service = build_limits_service(_storage)
+
+# SpeechService: puede ser None si falta AZURE_SPEECH_KEY. En ese caso la conversación funciona
+# igual (transcripción del navegador + feedback de Gemini) y se omite el scoring de Azure.
+_speech_service = build_speech_service()
+if _speech_service is None:
+    logger.info("AZURE_SPEECH_KEY ausente: scoring de pronunciación deshabilitado.")
 
 
 @asynccontextmanager
@@ -84,18 +98,67 @@ def get_repository() -> ConversationRepository:
     return _repository
 
 
+def get_limits_service() -> LimitsService:
+    """Dependencia FastAPI: entrega el servicio de límites (cuota + presupuesto)."""
+    return _limits_service
+
+
+def get_speech_service() -> "SpeechService | None":
+    """Dependencia FastAPI: entrega el servicio de pronunciación, o None si Azure no está."""
+    return _speech_service
+
+
+def get_user_id(x_user_id: str = Header(default="")) -> str:
+    """Identidad del navegador (header X-User-Id). Obligatoria; 400 si falta o viene vacía."""
+    user_id = x_user_id.strip()
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Falta el header X-User-Id.")
+    return user_id
+
+
+def _gemini_tokens(callback) -> tuple[int, int]:
+    """Suma input/output tokens capturados por get_usage_metadata_callback (por todos los modelos)."""
+    input_tokens = output_tokens = 0
+    for usage in callback.usage_metadata.values():
+        input_tokens += usage.get("input_tokens", 0)
+        output_tokens += usage.get("output_tokens", 0)
+    return input_tokens, output_tokens
+
+
 # --- conversación en vivo -------------------------------------------------------------
 
 @app.post("/conversation/start")
 def conversation_start(
     payload: conversation.StartRequest,
+    user_id: str = Depends(get_user_id),
     service: ConversationService = Depends(get_conversation_service),
+    limits: LimitsService = Depends(get_limits_service),
 ) -> dict:
-    """Arranca una conversación: sintetiza el contexto por dentro y devuelve la 1ª pregunta."""
+    """Arranca una conversación si el usuario tiene cuota y el presupuesto lo permite.
+
+    Chequea límites ANTES de gastar; si no puede, corta con 429 y un motivo tipado. Si puede,
+    sintetiza el contexto y devuelve la 1ª pregunta (por dentro de `service.start`), registra el
+    inicio para la cuota y el uso de Gemini (tokens reales capturados alrededor de la llamada).
+    """
     try:
-        conversation_id, question = service.start(payload.user_context, payload.max_questions)
+        decision = limits.check_can_start(user_id)
+    except Exception:
+        logger.exception("check_can_start falló (¿Postgres?); se corta conservador como 'paused'.")
+        raise HTTPException(status_code=429, detail={"reason": "paused"})
+
+    if not decision.allowed:
+        raise HTTPException(status_code=429, detail={"reason": decision.reason})
+
+    try:
+        with get_usage_metadata_callback() as callback:
+            conversation_id, question = service.start(payload.user_context, payload.max_questions)
     except ConversationError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
+
+    limits.record_conversation_start(user_id, conversation_id)
+    input_tokens, output_tokens = _gemini_tokens(callback)
+    limits.record_gemini_usage(user_id, conversation_id, "synthesis", input_tokens, output_tokens)
+
     return {"conversation_id": conversation_id, "question": question}
 
 
