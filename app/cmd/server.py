@@ -5,9 +5,10 @@ sintetizador) y el repositorio de configuraciones guardadas (Postgres), y se iny
 los endpoints. Si falta `GEMINI_API_KEY`, el servicio de conversación queda sin construir
 y sus endpoints responden 503; el resto del servidor arranca igual.
 
-La validación de entrada vive en los esquemas Pydantic (`StartRequest`, `AnswerRequest`,
-`ConfigRequest`); los endpoints solo traducen a HTTP. La síntesis del contexto al brief
-ocurre por DENTRO de `service.start` (no hay endpoint de síntesis).
+La validación de entrada vive en los esquemas Pydantic (`StartRequest`, `ConfigRequest`);
+los endpoints solo traducen a HTTP. `/conversation/answer` recibe multipart (audio + transcript)
+y valida sus campos inline. La síntesis del contexto al brief ocurre por DENTRO de `service.start`
+(no hay endpoint de síntesis).
 
 Sirve además el frontend simplificado estático (`app/web/`) en la raíz.
 """
