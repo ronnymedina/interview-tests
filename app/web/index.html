@@ -309,6 +309,176 @@
         rec.start();
       });
 
+      // ---- Grabación: WAV PCM 16-bit mono vía AudioContext, en paralelo al reconocimiento ----
+      function floatTo16BitPCM(view, offset, input) {
+        for (let i = 0; i < input.length; i++, offset += 2) {
+          const s = Math.max(-1, Math.min(1, input[i]));
+          view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+      }
+      function encodeWav(samples, sampleRate) {
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+        writeStr(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); writeStr(8, "WAVE");
+        writeStr(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+        writeStr(36, "data"); view.setUint32(40, samples.length * 2, true);
+        floatTo16BitPCM(view, 44, samples);
+        return new Blob([view], { type: "audio/wav" });
+      }
+
+      const Recorder = {
+        audioCtx: null, source: null, processor: null, stream: null,
+        chunks: [], sampleRate: 16000, recognition: null, transcript: "",
+        timerId: null, secondsLeft: 30, onDone: null,
+
+        async start(onDone) {
+          this.onDone = onDone; this.chunks = []; this.transcript = "";
+          this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          this.sampleRate = this.audioCtx.sampleRate;
+          this.source = this.audioCtx.createMediaStreamSource(this.stream);
+          this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
+          this.processor.onaudioprocess = (e) => {
+            this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+          };
+          this.source.connect(this.processor);
+          this.processor.connect(this.audioCtx.destination);
+          this._startRecognition();
+          this._startTimer();
+          Oval.recording();
+        },
+
+        _startRecognition() {
+          if (!SR) return; // sin reconocimiento se envía audio con transcript vacío -> el backend valida
+          const rec = new SR();
+          rec.lang = "en-US"; rec.continuous = true; rec.interimResults = true;
+          let acc = "";
+          rec.onresult = (e) => {
+            let interim = "";
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              const t = e.results[i][0].transcript;
+              if (e.results[i].isFinal) acc += t + " "; else interim += t;
+            }
+            this.transcript = acc.trim();
+            $("heard").textContent = (acc + interim).trim();
+          };
+          rec.onend = () => { if (this._recording) { try { rec.start(); } catch (_) {} } };
+          rec.onerror = () => {};
+          this.recognition = rec; this._recording = true;
+          try { rec.start(); } catch (_) {}
+        },
+
+        _startTimer() {
+          this.secondsLeft = 30;
+          $("counter").textContent = "0:30";
+          this.timerId = setInterval(() => {
+            this.secondsLeft -= 1;
+            $("counter").textContent = "0:" + String(this.secondsLeft).padStart(2, "0");
+            if (this.secondsLeft <= 0) this.stop();
+          }, 1000);
+        },
+
+        async stop() {
+          if (!this.audioCtx) return;
+          clearInterval(this.timerId); this.timerId = null;
+          this._recording = false;
+          $("counter").textContent = "";
+          try { this.recognition && this.recognition.stop(); } catch (_) {}
+          this.processor.disconnect(); this.source.disconnect();
+          this.stream.getTracks().forEach((t) => t.stop());
+          // Aplanar chunks a un solo Float32Array.
+          const len = this.chunks.reduce((n, c) => n + c.length, 0);
+          const samples = new Float32Array(len);
+          let off = 0; for (const c of this.chunks) { samples.set(c, off); off += c.length; }
+          await this.audioCtx.close(); this.audioCtx = null;
+          const wav = encodeWav(samples, this.sampleRate);
+          Oval.idle();
+          this.onDone && this.onDone(wav, this.transcript);
+        },
+      };
+
+      // ---- Banner de pausa / cuota ----
+      function showBanner(reason) {
+        $("app").classList.add("hidden");
+        $("banner").classList.remove("hidden");
+        if (reason === "quota") {
+          $("banner-title").textContent = "Llegaste al límite de la demo";
+          $("banner-text").textContent = "Ya usaste tus conversaciones de práctica. ¡Gracias por probarla!";
+        } else {
+          $("banner-title").textContent = "En pausa por el momento";
+          $("banner-text").textContent = "La demo está descansando. Vuelve a intentarlo más tarde.";
+        }
+      }
+
+      // ---- Paso 3: iniciar conversación (POST /start) ----
+      let conversationId = null;
+
+      $("ctx-start") && $("ctx-start").addEventListener("click", async () => {
+        const err = $("ctx-error");
+        err.classList.add("hidden");
+        const user_context = $("ctx-content").value.trim();
+        if (!user_context) { err.textContent = "Escribe un contexto para empezar."; err.classList.remove("hidden"); return; }
+        const btn = $("ctx-start"); btn.disabled = true; btn.textContent = "Preparando…";
+        try {
+          const data = await Api.request("POST", "/conversation/start", { json: { user_context } });
+          conversationId = data.conversation_id;
+          Stepper.go("talk");
+          setQuestion(data.question);
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 429) { showBanner(e.reason); return; }
+          err.textContent = e.message; err.classList.remove("hidden");
+        } finally {
+          btn.disabled = false; btn.textContent = "Empezar la práctica";
+        }
+      });
+
+      function setQuestion(text) {
+        $("question").textContent = text;
+        $("heard").textContent = "";
+        speakAsTutor(text);
+      }
+      $("repeat").addEventListener("click", () => speakAsTutor($("question").textContent));
+
+      // ---- Paso 3: responder (grabar → enviar multipart a /answer) ----
+      let recording = false;
+      $("talk-btn").addEventListener("click", async () => {
+        const btn = $("talk-btn");
+        if (recording) { recording = false; btn.disabled = true; await Recorder.stop(); return; }
+        $("talk-error").classList.add("hidden");
+        try {
+          await Recorder.start(sendAnswer);
+          recording = true; btn.textContent = "Detener";
+        } catch (_) {
+          $("talk-error").textContent = "No pudimos usar el micrófono. Revisa los permisos.";
+          $("talk-error").classList.remove("hidden");
+        }
+      });
+
+      async function sendAnswer(wavBlob, transcript) {
+        const btn = $("talk-btn");
+        btn.textContent = "Responder"; btn.disabled = false; recording = false;
+        $("heard").textContent = "";
+        const form = new FormData();
+        form.append("conversation_id", conversationId);
+        form.append("transcript", transcript || "");
+        form.append("audio", wavBlob, "answer.wav");
+        try {
+          const data = await Api.request("POST", "/conversation/answer", { form });
+          if (data.final) showFinal(data.final);   // showFinal llega en la Task 4
+          else setQuestion(data.question);
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 429) { showBanner(e.reason); return; }
+          $("talk-error").textContent = e.message;
+          $("talk-error").classList.remove("hidden");
+        }
+      }
+
+      // TEMPORAL: Task 4 reemplaza esto con la pantalla final real.
+      function showFinal(f) { console.log("final", f); }
+
       // ---- init ----
       Tts.load();
       speechSynthesis.onvoiceschanged = () => Tts.load();
