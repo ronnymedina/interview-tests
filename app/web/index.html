@@ -62,6 +62,23 @@
       .progress span.done { background: var(--gold); }
       .progress span.active { background: var(--gold); box-shadow: 0 0 0 4px rgba(184,150,63,.18); }
       .progress i { width: 26px; height: 1px; background: var(--gold-soft); }
+      .stage { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 8px 0 4px; }
+      .oval {
+        width: 132px; height: 168px; border-radius: 50%;
+        background: radial-gradient(ellipse at 50% 38%, #d9bd77, var(--gold));
+        box-shadow: 0 10px 30px rgba(184,150,63,.28);
+        animation: breathe 4.5s ease-in-out infinite;
+        transition: transform .12s ease, box-shadow .3s ease, filter .3s ease;
+      }
+      .oval.speaking { box-shadow: 0 0 0 10px rgba(184,150,63,.12), 0 12px 34px rgba(184,150,63,.4); }
+      .oval.beat { transform: scale(1.06); }
+      .oval.recording {
+        background: var(--ivory); border: 2px solid var(--gold-soft);
+        box-shadow: 0 0 0 8px rgba(110,139,106,.12); animation: ring 1.8s ease-in-out infinite;
+      }
+      @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+      @keyframes ring { 0%,100% { box-shadow: 0 0 0 6px rgba(110,139,106,.10); } 50% { box-shadow: 0 0 0 12px rgba(110,139,106,.18); } }
+      .counter { font-family: var(--serif); font-size: 1.1rem; color: var(--muted); min-height: 1.4em; }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
     </style>
   </head>
@@ -95,11 +112,37 @@
           </div>
         </section>
 
-        <!-- Paso 2: Contexto (se llena en Task 2) -->
-        <section id="step-context" class="card step hidden"></section>
+        <!-- Paso 2: Contexto -->
+        <section id="step-context" class="card step hidden">
+          <h2>¿Sobre qué quieres hablar?</h2>
+          <p class="lead">Pega tu CV, un texto o el tema a practicar y qué te gustaría mejorar. El tutor hará 5 preguntas basadas en esto.</p>
+          <label for="ctx-content">Tu contexto</label>
+          <textarea id="ctx-content" rows="6" placeholder="Ej: Soy desarrollador y tengo una entrevista en inglés. Quiero practicar hablar sobre mi experiencia y mejorar mi pronunciación."></textarea>
+          <div class="row">
+            <button id="ctx-dictate" type="button" class="ghost small">Dictar por voz</button>
+            <span id="ctx-status" class="status"></span>
+          </div>
+          <div class="row">
+            <button id="ctx-back" type="button" class="ghost">Atrás</button>
+            <button id="ctx-start" type="button">Empezar la práctica</button>
+            <span id="ctx-error" class="error hidden"></span>
+          </div>
+        </section>
 
-        <!-- Paso 3: Práctica (se llena en Task 2/3) -->
-        <section id="step-talk" class="card step hidden"></section>
+        <!-- Paso 3: Práctica -->
+        <section id="step-talk" class="card step hidden">
+          <div class="stage">
+            <div id="oval" class="oval"></div>
+            <div id="counter" class="counter"></div>
+          </div>
+          <p id="question" class="question" style="text-align:center; font-size:1.3rem; margin:10px 0 0"></p>
+          <p id="heard" class="muted" style="text-align:center; min-height:1.2em"></p>
+          <div class="row" style="justify-content:center">
+            <button id="repeat" type="button" class="ghost small">Repetir pregunta</button>
+            <button id="talk-btn" type="button">Responder</button>
+          </div>
+          <div id="talk-error" class="error hidden" style="text-align:center"></div>
+        </section>
 
         <!-- Pantalla final (se llena en Task 4) -->
         <section id="step-final" class="step hidden"></section>
@@ -211,6 +254,29 @@
         },
       };
 
+      // ---- Óvalo tutor: reposo / hablando (pulsa con la voz) / grabando ----
+      const Oval = {
+        el: null,
+        init() { this.el = $("oval"); },
+        idle() { this.el.className = "oval"; },
+        speaking() { this.el.className = "oval speaking"; },
+        pulse() {
+          // Un latido por cada límite de palabra del TTS (onboundary).
+          this.el.classList.add("beat");
+          setTimeout(() => this.el && this.el.classList.remove("beat"), 130);
+        },
+        recording() { this.el.className = "oval recording"; },
+      };
+
+      // Habla una pregunta como el tutor: el óvalo pulsa mientras dura la voz.
+      function speakAsTutor(text) {
+        Oval.speaking();
+        Tts.speak(text, {
+          onboundary: () => Oval.pulse(),
+          onend: () => Oval.idle(),
+        });
+      }
+
       // ---- Paso 1: Voz ----
       $("rate").addEventListener("input", () => {
         const v = Number($("rate").value);
@@ -225,9 +291,28 @@
       );
       $("voice-next").addEventListener("click", () => Stepper.go("context"));
 
+      // ---- Paso 2: dictado opcional del contexto + navegación ----
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      $("ctx-back") && $("ctx-back").addEventListener("click", () => Stepper.go("voice"));
+      $("ctx-dictate") && $("ctx-dictate").addEventListener("click", () => {
+        if (!SR) { $("ctx-status").textContent = "Tu navegador no permite dictar (usa Chrome)."; return; }
+        const rec = new SR();
+        rec.lang = "es-ES"; rec.interimResults = false; rec.continuous = true;
+        const box = $("ctx-content");
+        $("ctx-status").textContent = "Escuchando… habla y para cuando termines.";
+        rec.onresult = (e) => {
+          for (let i = e.resultIndex; i < e.results.length; i++)
+            if (e.results[i].isFinal) box.value += (box.value ? " " : "") + e.results[i][0].transcript;
+        };
+        rec.onend = () => { $("ctx-status").textContent = ""; };
+        rec.onerror = () => { $("ctx-status").textContent = ""; };
+        rec.start();
+      });
+
       // ---- init ----
       Tts.load();
       speechSynthesis.onvoiceschanged = () => Tts.load();
+      Oval.init();
       Stepper.go("voice");
     </script>
   </body>
