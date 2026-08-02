@@ -13,7 +13,7 @@
     <style>
       :root {
         --cream: #faf6ef; --ivory: #fffdf8; --ink: #2e2a26;
-        --gold: #b8963f; --gold-soft: #eadfc4; --muted: #8a8278; --sage: #6e8b6a;
+        --gold: #b8963f; --gold-deep: #8a6d22; --gold-soft: #eadfc4; --muted: #8a8278; --sage: #6e8b6a;
         --serif: "Fraunces", Georgia, "Times New Roman", serif;
         --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         --radius: 16px; --shadow: 0 1px 2px rgba(46,42,38,.04), 0 8px 24px rgba(46,42,38,.06);
@@ -45,7 +45,7 @@
       .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
       button {
         font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 10px;
-        border: 1px solid transparent; background: var(--gold); color: #fff; cursor: pointer;
+        border: 1px solid transparent; background: var(--gold-deep); color: #fff; cursor: pointer;
         transition: filter .15s ease, transform .05s ease;
       }
       button:hover { filter: brightness(1.06); }
@@ -79,7 +79,7 @@
       @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
       @keyframes ring { 0%,100% { box-shadow: 0 0 0 6px rgba(110,139,106,.10); } 50% { box-shadow: 0 0 0 12px rgba(110,139,106,.18); } }
       .counter { font-family: var(--serif); font-size: 1.1rem; color: var(--muted); min-height: 1.4em; }
-      @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
       .scores { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 22px; }
       .score { flex: 1 1 90px; text-align: center; background: var(--ivory); border: 1px solid var(--gold-soft); border-radius: 12px; padding: 14px 8px; }
@@ -90,7 +90,7 @@
       .pill { display: inline-block; margin: 4px 8px 0 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); color: var(--ink); cursor: pointer; font-size: .92rem; }
       .phrase { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold); }
       .phrase del { color: #b4402f; text-decoration: line-through; } .phrase ins { color: var(--sage); text-decoration: none; }
-      button.on { background: var(--gold); color: #fff; border-color: var(--gold); }
+      button.on { background: var(--gold-deep); color: #fff; border-color: var(--gold-deep); }
     </style>
   </head>
   <body>
@@ -270,7 +270,8 @@
             dot.classList.toggle("active", idx >= 0 && i === idx);
           });
           $("progress").classList.toggle("hidden", name === "final");
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
         },
       };
 
@@ -357,9 +358,10 @@
           for (let i = e.resultIndex; i < e.results.length; i++)
             if (e.results[i].isFinal) box.value += (box.value ? " " : "") + e.results[i][0].transcript;
         };
-        rec.onend = () => { $("ctx-status").textContent = ""; };
-        rec.onerror = () => { $("ctx-status").textContent = ""; };
+        rec.onend = () => { $("ctx-status").textContent = ""; $("ctx-dictate").disabled = false; };
+        rec.onerror = () => { $("ctx-status").textContent = ""; $("ctx-dictate").disabled = false; };
         rec.start();
+        $("ctx-dictate").disabled = true;
       });
 
       // ---- Grabación: WAV PCM 16-bit mono vía AudioContext, en paralelo al reconocimiento ----
@@ -502,6 +504,7 @@
       $("talk-btn").addEventListener("click", async () => {
         const btn = $("talk-btn");
         if (recording) { recording = false; btn.disabled = true; await Recorder.stop(); return; }
+        speechSynthesis.cancel();
         $("talk-error").classList.add("hidden");
         btn.disabled = true; // evita re-entrar start() durante el prompt de getUserMedia
         try {
@@ -524,7 +527,7 @@
         form.append("audio", wavBlob, "answer.wav");
         try {
           const data = await Api.request("POST", "/conversation/answer", { form });
-          if (data.final) showFinal(data.final);   // showFinal llega en la Task 4
+          if (data.final) showFinal(data.final);
           else setQuestion(data.question);
         } catch (e) {
           if (e instanceof ApiError && e.status === 429) { showBanner(e.reason); return; }
@@ -552,7 +555,7 @@
             div.innerHTML = `<b>${Math.round(val)}</b><small>${label}</small>`;
             scoresEl.appendChild(div);
           });
-          scoresEl.classList.remove("hidden");
+          scoresEl.classList.toggle("hidden", scoresEl.children.length === 0);
         } else {
           scoresEl.classList.add("hidden");
         }
@@ -633,6 +636,11 @@
       $("restart").addEventListener("click", () => {
         conversationId = null;
         $("ctx-content").value = "";
+        fb.liked = null; fb.rating = null; fb.wants_more = null;
+        $("fb-comment").value = ""; $("fb-suggestions").value = "";
+        $("fb-status").textContent = "";
+        $("fb-send").disabled = false;
+        document.querySelectorAll("#fb-like button, #fb-more button, #fb-stars button").forEach((b) => b.classList.remove("on"));
         Stepper.go("context");
       });
 
