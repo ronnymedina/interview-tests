@@ -80,6 +80,17 @@
       @keyframes ring { 0%,100% { box-shadow: 0 0 0 6px rgba(110,139,106,.10); } 50% { box-shadow: 0 0 0 12px rgba(110,139,106,.18); } }
       .counter { font-family: var(--serif); font-size: 1.1rem; color: var(--muted); min-height: 1.4em; }
       @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+      .scores { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 22px; }
+      .score { flex: 1 1 90px; text-align: center; background: var(--ivory); border: 1px solid var(--gold-soft); border-radius: 12px; padding: 14px 8px; }
+      .score b { font-family: var(--serif); font-size: 1.6rem; display: block; }
+      .score.high b { color: var(--sage); }
+      .score small { color: var(--muted); }
+      .prose { white-space: pre-wrap; }
+      .pill { display: inline-block; margin: 4px 8px 0 0; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); color: var(--ink); cursor: pointer; font-size: .92rem; }
+      .phrase { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold); }
+      .phrase del { color: #b4402f; text-decoration: line-through; } .phrase ins { color: var(--sage); text-decoration: none; }
+      button.on { background: var(--gold); color: #fff; border-color: var(--gold); }
     </style>
   </head>
   <body>
@@ -144,8 +155,50 @@
           <div id="talk-error" class="error hidden" style="text-align:center"></div>
         </section>
 
-        <!-- Pantalla final (se llena en Task 4) -->
-        <section id="step-final" class="step hidden"></section>
+        <!-- Pantalla final -->
+        <section id="step-final" class="step hidden">
+          <h1>Tu resultado</h1>
+          <div id="scores" class="scores hidden"></div>
+          <div id="feedback" class="prose"></div>
+
+          <div id="words-block" class="hidden">
+            <h2 style="margin-top:26px">Palabras para practicar</h2>
+            <p class="muted">Toca una palabra para escucharla.</p>
+            <div id="words"></div>
+          </div>
+
+          <div id="phrases-block" class="hidden">
+            <h2 style="margin-top:26px">Frases más naturales</h2>
+            <div id="phrases"></div>
+          </div>
+
+          <section class="card" style="margin-top:28px">
+            <h2>¿Qué te pareció?</h2>
+            <div class="row" id="fb-like" style="gap:8px">
+              <button type="button" class="ghost small" data-like="true">👍 Me gustó</button>
+              <button type="button" class="ghost small" data-like="false">👎 No mucho</button>
+            </div>
+            <label>Del 1 al 5</label>
+            <div class="row" id="fb-stars" style="gap:6px; margin-top:6px"></div>
+            <label for="fb-comment">Comentario (opcional)</label>
+            <textarea id="fb-comment" rows="3" placeholder="¿Qué mejorarías?"></textarea>
+            <label>¿Te interesarían más funciones?</label>
+            <div class="row" id="fb-more" style="gap:8px">
+              <button type="button" class="ghost small" data-more="true">Sí</button>
+              <button type="button" class="ghost small" data-more="false">No</button>
+            </div>
+            <label for="fb-suggestions">¿Cuáles?</label>
+            <input id="fb-suggestions" type="text" placeholder="Ej: ejercicios de gramática" />
+            <div class="row">
+              <button id="fb-send" type="button">Enviar feedback</button>
+              <span id="fb-status" class="status"></span>
+            </div>
+          </section>
+
+          <div class="row" style="justify-content:center; margin-top:26px">
+            <button id="restart" type="button" class="ghost">Practicar de nuevo</button>
+          </div>
+        </section>
       </div>
     </main>
     <script>
@@ -480,8 +533,108 @@
         }
       }
 
-      // TEMPORAL: Task 4 reemplaza esto con la pantalla final real.
-      function showFinal(f) { console.log("final", f); }
+      // ---- Pantalla final: feedback + scores (Azure) + palabras + frases ----
+      const SCORE_LABELS = { pronunciation: "Pronunciación", accuracy: "Precisión", fluency: "Fluidez", prosody: "Prosodia" };
+
+      function showFinal(final) {
+        Stepper.go("final");
+        $("feedback").textContent = final.content_feedback || "";
+
+        // Scores de Azure (pueden faltar: pronunciation === null).
+        const scoresEl = $("scores"); scoresEl.innerHTML = "";
+        const pron = final.pronunciation;
+        if (pron && pron.scores) {
+          Object.entries(SCORE_LABELS).forEach(([key, label]) => {
+            const val = pron.scores[key];
+            if (val == null) return;
+            const div = document.createElement("div");
+            div.className = "score" + (val >= 80 ? " high" : "");
+            div.innerHTML = `<b>${Math.round(val)}</b><small>${label}</small>`;
+            scoresEl.appendChild(div);
+          });
+          scoresEl.classList.remove("hidden");
+        } else {
+          scoresEl.classList.add("hidden");
+        }
+
+        renderWords(final.practice_words || []);
+        renderPhrases(final.practice_phrases || []);
+      }
+
+      function renderWords(words) {
+        const block = $("words-block"), el = $("words"); el.innerHTML = "";
+        if (!words.length) { block.classList.add("hidden"); return; }
+        words.forEach((w) => {
+          const b = document.createElement("button");
+          b.className = "pill";
+          b.textContent = w.hint ? `${w.word} · ${w.hint}` : w.word;
+          b.onclick = () => Tts.speak(w.present || w.word);
+          el.appendChild(b);
+        });
+        block.classList.remove("hidden");
+      }
+
+      function renderPhrases(phrases) {
+        const block = $("phrases-block"), el = $("phrases"); el.innerHTML = "";
+        if (!phrases.length) { block.classList.add("hidden"); return; }
+        phrases.forEach((p) => {
+          const div = document.createElement("div"); div.className = "phrase";
+          const line = document.createElement("div");
+          const del = document.createElement("del"); del.textContent = p.original;
+          const ins = document.createElement("ins"); ins.textContent = " → " + p.suggestion;
+          line.append(del, ins); div.appendChild(line);
+          if (p.note) { const n = document.createElement("div"); n.className = "muted"; n.textContent = p.note; div.appendChild(n); }
+          el.appendChild(div);
+        });
+        block.classList.remove("hidden");
+      }
+
+      // ---- Formulario de feedback ----
+      const fb = { liked: null, rating: null, wants_more: null };
+
+      function wireToggle(containerId, attr, key) {
+        const box = $(containerId);
+        box.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const val = btn.getAttribute(attr) === "true";
+            fb[key] = val;
+            box.querySelectorAll("button").forEach((b) => b.classList.remove("on"));
+            btn.classList.add("on");
+          });
+        });
+      }
+      wireToggle("fb-like", "data-like", "liked");
+      wireToggle("fb-more", "data-more", "wants_more");
+
+      // Estrellas 1..5
+      const starsEl = $("fb-stars");
+      for (let i = 1; i <= 5; i++) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "ghost small"; b.textContent = "★"; b.dataset.v = String(i);
+        b.addEventListener("click", () => {
+          fb.rating = i;
+          starsEl.querySelectorAll("button").forEach((s) => s.classList.toggle("on", Number(s.dataset.v) <= i));
+        });
+        starsEl.appendChild(b);
+      }
+
+      $("fb-send").addEventListener("click", async () => {
+        const status = $("fb-status"); status.textContent = "Enviando…";
+        try {
+          await Api.request("POST", "/feedback", { json: {
+            liked: fb.liked, rating: fb.rating, wants_more: fb.wants_more,
+            comment: $("fb-comment").value.trim(), suggestions: $("fb-suggestions").value.trim(),
+          }});
+          status.textContent = "¡Gracias! 🙏";
+          $("fb-send").disabled = true;
+        } catch (e) { status.textContent = "No se pudo enviar: " + e.message; }
+      });
+
+      $("restart").addEventListener("click", () => {
+        conversationId = null;
+        $("ctx-content").value = "";
+        Stepper.go("context");
+      });
 
       // ---- init ----
       Tts.load();
