@@ -16,7 +16,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 from langchain_core.callbacks import get_usage_metadata_callback
 
@@ -164,14 +164,51 @@ def conversation_start(
 
 @app.post("/conversation/answer")
 def conversation_answer(
-    payload: conversation.AnswerRequest,
+    conversation_id: str = Form(...),
+    transcript: str = Form(...),
+    audio: UploadFile = File(...),
+    user_id: str = Depends(get_user_id),
     service: ConversationService = Depends(get_conversation_service),
+    limits: LimitsService = Depends(get_limits_service),
+    speech: "SpeechService | None" = Depends(get_speech_service),
 ) -> dict:
-    """Inyecta la respuesta del alumno y devuelve la siguiente pregunta o el feedback final."""
+    """Procesa una respuesta: encola el audio para Azure (no espera) y avanza el grafo.
+
+    Recibe multipart: el `transcript` del navegador (mueve la conversación rápido) y el `audio`
+    WAV (lo puntúa Azure en segundo plano). En el turno final combina el feedback de Gemini con
+    la evaluación de pronunciación agregada. Registra el uso de Gemini en cada turno y el de
+    Azure una vez, al final, por la duración total.
+    """
+    text = transcript.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="La respuesta está vacía.")
+
+    # Encola el WAV para el scoring en segundo plano ANTES de llamar al grafo (no bloquea).
+    if speech is not None:
+        speech.score_answer(conversation_id, audio.file.read())
+
     try:
-        return service.answer(payload.conversation_id, payload.text)
+        with get_usage_metadata_callback() as callback:
+            result = service.answer(conversation_id, text)
     except ConversationError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
+
+    input_tokens, output_tokens = _gemini_tokens(callback)
+    is_final = "final" in result
+
+    limits.record_gemini_usage(
+        user_id, conversation_id, "feedback" if is_final else "question",
+        input_tokens, output_tokens,
+    )
+
+    if is_final:
+        pronunciation = None
+        if speech is not None:
+            pronunciation = speech.final_pronunciation(conversation_id)
+            limits.record_azure_usage(user_id, conversation_id, pronunciation["audio_seconds"])
+        result["final"]["pronunciation"] = pronunciation
+
+    return result
 
 
 # --- configuraciones guardadas (CRUD sobre conversation_configs) ----------------------
