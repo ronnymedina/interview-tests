@@ -139,6 +139,9 @@
       .phrase { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold); }
       .phrase del { color: #b4402f; text-decoration: line-through; } .phrase ins { color: var(--sage); text-decoration: none; }
       button.on { background: var(--gold-deep); color: #fff; border-color: var(--gold-deep); }
+      /* Aviso informativo (recomendación de navegador). */
+      .notice { display: flex; gap: 9px; align-items: flex-start; background: rgba(0,113,227,.07); border: 1px solid rgba(0,113,227,.18); color: var(--ink); border-radius: 12px; padding: 11px 14px; font-size: .9rem; line-height: 1.45; margin: 0 0 22px; }
+      .notice .ico { flex-shrink: 0; }
     </style>
   </head>
   <body>
@@ -161,6 +164,7 @@
         <section id="step-voice" class="card step">
           <h2>La voz de tu tutor</h2>
           <p class="lead">Elige quién te lee las preguntas y a qué ritmo.</p>
+          <p class="notice"><span class="ico">💡</span><span>Para la mejor experiencia (voz del tutor y dictado por voz), usa <strong>Google Chrome</strong> en computadora. En otros navegadores algunas funciones pueden no estar disponibles.</span></p>
           <label for="voice">Voz</label>
           <select id="voice"></select>
           <label for="rate">Ritmo: <span id="rate-value">0.95</span>×</label>
@@ -353,7 +357,13 @@
             opt.textContent = `${v.name} (${v.lang})`;
             sel.appendChild(opt);
           });
-          if (saved !== null && this.voices[Number(saved)]) sel.value = saved;
+          if (saved !== null && this.voices[Number(saved)]) {
+            sel.value = saved;
+          } else {
+            // Voz por defecto recomendada (disponible en Chrome). Si no está, queda la primera.
+            const preferred = this.voices.findIndex((v) => v.name === "Google US English");
+            if (preferred >= 0) sel.value = String(preferred);
+          }
           const rate = localStorage.getItem("pilot_rate");
           if (rate) { $("rate").value = rate; $("rate-value").textContent = Number(rate).toFixed(2); }
         },
