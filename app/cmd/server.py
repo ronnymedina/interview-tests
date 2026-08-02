@@ -29,6 +29,7 @@ from app.conversation import (
     ConversationRepository,
     ConversationService,
 )
+from app.feedback import FeedbackRepository, FeedbackRequest
 from app.limits import LimitsService, build_limits_service
 from app.speech import SpeechService, build_speech_service
 from app.storage import PostgresStorage
@@ -69,6 +70,8 @@ _speech_service = build_speech_service()
 if _speech_service is None:
     logger.info("AZURE_SPEECH_KEY ausente: scoring de pronunciación deshabilitado.")
 
+_feedback_repository = FeedbackRepository(_storage)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -107,6 +110,11 @@ def get_limits_service() -> LimitsService:
 def get_speech_service() -> "SpeechService | None":
     """Dependencia FastAPI: entrega el servicio de pronunciación, o None si Azure no está."""
     return _speech_service
+
+
+def get_feedback_repository() -> FeedbackRepository:
+    """Dependencia FastAPI: entrega el repositorio del feedback del piloto."""
+    return _feedback_repository
 
 
 def get_user_id(x_user_id: str = Header(default="")) -> str:
@@ -210,6 +218,17 @@ def conversation_answer(
         result["final"]["pronunciation"] = pronunciation
 
     return result
+
+
+@app.post("/feedback", status_code=201)
+def feedback_create(
+    payload: FeedbackRequest,
+    user_id: str = Depends(get_user_id),
+    repo: FeedbackRepository = Depends(get_feedback_repository),
+) -> dict:
+    """Guarda el formulario de feedback del piloto con la identidad del navegador (X-User-Id)."""
+    feedback_id = repo.save(user_id, payload)
+    return {"id": feedback_id}
 
 
 # --- configuraciones guardadas (CRUD sobre conversation_configs) ----------------------
