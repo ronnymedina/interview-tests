@@ -50,6 +50,15 @@ class ConversationStartIn(BaseModel):
     max_questions: int = 5
 
 
+class ConversationPromptGenerateIn(BaseModel):
+    context: str
+
+
+class ConversationPromptIn(BaseModel):
+    name: str
+    system_prompt: str
+
+
 def _clean_text(text: TextIn) -> tuple[str, str, int | None]:
     """Valida y normaliza un texto de entrada. Lanza 400 con mensaje en espanol."""
     title = text.title.strip()
@@ -61,6 +70,17 @@ def _clean_text(text: TextIn) -> tuple[str, str, int | None]:
     if text.difficulty is not None and not (1 <= text.difficulty <= 10):
         raise HTTPException(status_code=400, detail="La dificultad debe ser un numero del 1 al 10.")
     return title, content, text.difficulty
+
+
+def _clean_conversation_prompt(payload: ConversationPromptIn) -> tuple[str, str]:
+    """Valida y normaliza un prompt de conversacion. Lanza 400 con mensaje en espanol."""
+    name = payload.name.strip()
+    system_prompt = payload.system_prompt.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="El nombre esta vacio.")
+    if not system_prompt:
+        raise HTTPException(status_code=400, detail="El escenario esta vacio.")
+    return name, system_prompt
 
 
 @app.get("/texts")
@@ -135,6 +155,47 @@ def conversation_start(payload: ConversationStartIn) -> dict:
     except conversation.ConversationError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
     return {"conversation_id": conversation_id, "question": question}
+
+
+@app.post("/conversation/prompt/generate")
+def conversation_prompt_generate(payload: ConversationPromptGenerateIn) -> dict:
+    context = payload.context.strip()
+    if not context:
+        raise HTTPException(status_code=400, detail="El contexto esta vacio.")
+    try:
+        system_prompt = conversation.generate_system_prompt(context)
+    except conversation.ConversationError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+    return {"system_prompt": system_prompt}
+
+
+@app.get("/conversation/prompts")
+def list_conversation_prompts() -> list[dict]:
+    return db.list_conversation_prompts()
+
+
+@app.post("/conversation/prompts")
+def create_conversation_prompt(payload: ConversationPromptIn) -> dict:
+    name, system_prompt = _clean_conversation_prompt(payload)
+    prompt_id = db.create_conversation_prompt(name, system_prompt)
+    return db.get_conversation_prompt(prompt_id)
+
+
+@app.put("/conversation/prompts/{prompt_id}")
+def update_conversation_prompt(prompt_id: int, payload: ConversationPromptIn) -> dict:
+    if db.get_conversation_prompt(prompt_id) is None:
+        raise HTTPException(status_code=404, detail="El prompt no existe.")
+    name, system_prompt = _clean_conversation_prompt(payload)
+    db.update_conversation_prompt(prompt_id, name, system_prompt)
+    return db.get_conversation_prompt(prompt_id)
+
+
+@app.delete("/conversation/prompts/{prompt_id}")
+def delete_conversation_prompt(prompt_id: int) -> dict:
+    if db.get_conversation_prompt(prompt_id) is None:
+        raise HTTPException(status_code=404, detail="El prompt no existe.")
+    db.delete_conversation_prompt(prompt_id)
+    return {"ok": True}
 
 
 @app.post("/conversation/{conversation_id}/answer")

@@ -119,8 +119,8 @@ def test_final_returns_structured_practice_words():
     report = conversation.FeedbackReport(
         feedback="Bien hecho.",
         words=[
-            conversation.PracticeWord(word="worked", hint="-ed → /t/"),
-            conversation.PracticeWord(word="enjoyed", hint="-ed → /d/"),
+            conversation.PracticeWord(word="worked", present="work", hint="-ed → /t/"),
+            conversation.PracticeWord(word="task", hint="/tæsk/"),  # sin present
         ],
     )
     graph = conversation.build_graph(FakeLLM(["Q1", report]))
@@ -128,8 +128,8 @@ def test_final_returns_structured_practice_words():
     result = conversation.answer(conversation_id, "hi", graph=graph)
     assert result["final"]["content_feedback"] == "Bien hecho."
     assert result["final"]["practice_words"] == [
-        {"word": "worked", "hint": "-ed → /t/"},
-        {"word": "enjoyed", "hint": "-ed → /d/"},
+        {"word": "worked", "present": "work", "hint": "-ed → /t/"},
+        {"word": "task", "present": "", "hint": "/tæsk/"},
     ]
 
 
@@ -157,9 +157,28 @@ def test_answer_after_finished_raises_409_and_does_not_reinvoke_graph():
 def test_start_without_api_key_raises_500(monkeypatch):
     """Sin GEMINI_API_KEY, _get_graph() debe fallar con 500 al construir el grafo real."""
     monkeypatch.setattr(config, "GEMINI_API_KEY", "")
+    monkeypatch.setattr(conversation, "_llm", None)
     monkeypatch.setattr(conversation, "_graph", None)
 
     with pytest.raises(conversation.ConversationError) as error:
         conversation.start("Roleplay", 2)
 
     assert error.value.status == 500
+
+
+def test_generate_system_prompt_returns_scenario():
+    llm = FakeLLM(["Ask the learner about their backend experience."])
+    result = conversation.generate_system_prompt("Practicar entrevista backend", llm=llm)
+    assert result == "Ask the learner about their backend experience."
+
+
+def test_generate_system_prompt_empty_context_raises_400():
+    with pytest.raises(conversation.ConversationError) as error:
+        conversation.generate_system_prompt("   ", llm=FakeLLM([]))
+    assert error.value.status == 400
+
+
+def test_generate_system_prompt_flattens_block_content():
+    llm = BlockContentLLM(["Scenario as blocks"])
+    result = conversation.generate_system_prompt("algo de contexto", llm=llm)
+    assert result == "Scenario as blocks"

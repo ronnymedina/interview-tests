@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS conversations (
     prosody_score       REAL,
     content_feedback    TEXT NOT NULL
 );
+
+-- Prompts de conversacion reutilizables: escenario (system_prompt) con nombre, generado
+-- con el LLM o escrito a mano, para elegirlo al iniciar una conversacion.
+CREATE TABLE IF NOT EXISTS conversation_prompts (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    name          TEXT NOT NULL,
+    system_prompt TEXT NOT NULL
+);
 """
 
 
@@ -344,3 +354,51 @@ def list_word_history(word: str) -> list[dict]:
             (word.lower(),),
         ).fetchall()
         return [dict(row) for row in rows]
+
+
+# --- prompts de conversacion -------------------------------------------------
+
+
+def create_conversation_prompt(name: str, system_prompt: str) -> int:
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _connect() as conn:
+        cursor = conn.execute(
+            "INSERT INTO conversation_prompts (created_at, updated_at, name, system_prompt) "
+            "VALUES (?, ?, ?, ?)",
+            (now, now, name, system_prompt),
+        )
+        return cursor.lastrowid or 0
+
+
+def get_conversation_prompt(prompt_id: int) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT id, created_at, updated_at, name, system_prompt "
+            "FROM conversation_prompts WHERE id = ?",
+            (prompt_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def list_conversation_prompts() -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT id, created_at, updated_at, name, system_prompt "
+            "FROM conversation_prompts ORDER BY id DESC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def update_conversation_prompt(prompt_id: int, name: str, system_prompt: str) -> None:
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE conversation_prompts SET name = ?, system_prompt = ?, updated_at = ? "
+            "WHERE id = ?",
+            (name, system_prompt, now, prompt_id),
+        )
+
+
+def delete_conversation_prompt(prompt_id: int) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM conversation_prompts WHERE id = ?", (prompt_id,))

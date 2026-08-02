@@ -194,3 +194,68 @@ def test_conversation_answer_unknown_id_returns_404(client, monkeypatch):
         files={"audio": ("r.wav", b"fake-audio", "audio/wav")},
     )
     assert resp.status_code == 404
+
+
+def test_create_and_list_conversation_prompt(client):
+    resp = client.post(
+        "/conversation/prompts",
+        json={"name": "Entrevista", "system_prompt": "Ask about work."},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Entrevista"
+
+    listed = client.get("/conversation/prompts").json()
+    assert len(listed) == 1
+    assert listed[0]["system_prompt"] == "Ask about work."
+
+
+def test_create_conversation_prompt_empty_name_rejected(client):
+    resp = client.post("/conversation/prompts", json={"name": "  ", "system_prompt": "x"})
+    assert resp.status_code == 400
+
+
+def test_create_conversation_prompt_empty_prompt_rejected(client):
+    resp = client.post("/conversation/prompts", json={"name": "n", "system_prompt": "  "})
+    assert resp.status_code == 400
+
+
+def test_update_conversation_prompt(client):
+    pid = client.post(
+        "/conversation/prompts", json={"name": "Viejo", "system_prompt": "Old."}
+    ).json()["id"]
+    resp = client.put(
+        f"/conversation/prompts/{pid}", json={"name": "Nuevo", "system_prompt": "New."}
+    )
+    assert resp.status_code == 200
+    assert db.get_conversation_prompt(pid)["name"] == "Nuevo"
+
+
+def test_update_missing_conversation_prompt_returns_404(client):
+    resp = client.put("/conversation/prompts/999", json={"name": "n", "system_prompt": "s"})
+    assert resp.status_code == 404
+
+
+def test_delete_conversation_prompt(client):
+    pid = client.post(
+        "/conversation/prompts", json={"name": "Uno", "system_prompt": "s"}
+    ).json()["id"]
+    assert client.delete(f"/conversation/prompts/{pid}").status_code == 200
+    assert client.get("/conversation/prompts").json() == []
+
+
+def test_delete_missing_conversation_prompt_returns_404(client):
+    assert client.delete("/conversation/prompts/999").status_code == 404
+
+
+def test_conversation_prompt_generate(client, monkeypatch):
+    monkeypatch.setattr(
+        conversation, "generate_system_prompt", lambda context: f"Scenario for: {context}"
+    )
+    resp = client.post("/conversation/prompt/generate", json={"context": "backend interview"})
+    assert resp.status_code == 200
+    assert resp.json() == {"system_prompt": "Scenario for: backend interview"}
+
+
+def test_conversation_prompt_generate_empty_context_rejected(client):
+    resp = client.post("/conversation/prompt/generate", json={"context": "   "})
+    assert resp.status_code == 400
