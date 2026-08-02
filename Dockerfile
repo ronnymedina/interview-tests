@@ -69,4 +69,7 @@ COPY --from=base /app/config.py ./config.py
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "app.cmd.server:app", "--host", "0.0.0.0", "--port", "8000"]
+# `sh -c ... exec`: expande $PORT (Railway lo inyecta en runtime; si falta, cae a 8000) y
+# con `exec` uvicorn reemplaza al shell y queda como PID 1, así recibe SIGTERM y apaga
+# ordenadamente. Sin usar $PORT, Railway no puede rutear el tráfico al contenedor.
+CMD ["sh", "-c", "exec uvicorn app.cmd.server:app --host 0.0.0.0 --port ${PORT:-8000}"]

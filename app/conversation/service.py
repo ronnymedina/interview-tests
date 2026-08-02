@@ -40,19 +40,25 @@ class ConversationService:
     def _thread(conversation_id: str) -> dict:
         return {"configurable": {"thread_id": conversation_id}}
 
-    def start(self, user_context: str, max_questions: int) -> tuple[str, str]:
-        """Crea una conversación nueva y devuelve (conversation_id, primera_pregunta).
+    def start(self, user_context: str, max_questions: int) -> tuple[str, str, int, int]:
+        """Crea una conversación y devuelve (id, 1ª pregunta, nº de pregunta, total).
 
         Sintetiza el contexto CRUDO del alumno al brief de dos secciones POR DENTRO (no es
         un paso separado que pida el frontend), genera un `thread_id` fresco y siembra el
         estado con las reglas fijas + el brief como primer turno humano (`initial_state`).
+        El nº de pregunta y el total permiten al frontend mostrar "Pregunta X de N".
         """
         brief = self._synthesizer.synthesize(user_context)
         conversation_id = uuid.uuid4().hex
         result = self._graph.invoke(
             initial_state(brief, max_questions), self._thread(conversation_id)
         )
-        return conversation_id, result["messages"][-1].content
+        return (
+            conversation_id,
+            result["messages"][-1].content,
+            result["questions_asked"],
+            result["max_questions"],
+        )
 
     def exists(self, conversation_id: str) -> bool:
         """Chequeo barato de si el id de conversación es válido, sin invocar el grafo."""
@@ -80,7 +86,11 @@ class ConversationService:
                     "practice_phrases": result["practice_phrases"],
                 }
             }
-        return {"question": result["messages"][-1].content}
+        return {
+            "question": result["messages"][-1].content,
+            "question_number": result["questions_asked"],
+            "total_questions": result["max_questions"],
+        }
 
 
 def build_llm():

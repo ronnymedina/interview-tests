@@ -18,7 +18,7 @@ class FakeConversationService:
 
     def start(self, user_context, max_questions):
         self.started_with = (user_context, max_questions)
-        return "conv-123", "What's your name?"
+        return "conv-123", "What's your name?", 1, 5
 
 
 class FakeLimits:
@@ -70,7 +70,12 @@ def test_start_allows_and_records(client_with):
         headers={"X-User-Id": "u1"},
     )
     assert resp.status_code == 200
-    assert resp.json() == {"conversation_id": "conv-123", "question": "What's your name?"}
+    assert resp.json() == {
+        "conversation_id": "conv-123",
+        "question": "What's your name?",
+        "question_number": 1,
+        "total_questions": 5,
+    }
     # cableado: se registró el inicio y un usage_event de Gemini con kind 'synthesis'.
     assert limits.starts == [("u1", "conv-123")]
     assert len(limits.gemini) == 1
