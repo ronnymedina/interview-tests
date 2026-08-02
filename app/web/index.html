@@ -335,6 +335,7 @@
         timerId: null, secondsLeft: 30, onDone: null,
 
         async start(onDone) {
+          this._stopping = false;
           this.onDone = onDone; this.chunks = []; this.transcript = "";
           this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -382,7 +383,8 @@
         },
 
         async stop() {
-          if (!this.audioCtx) return;
+          if (this._stopping || !this.audioCtx) return;
+          this._stopping = true;
           clearInterval(this.timerId); this.timerId = null;
           this._recording = false;
           $("counter").textContent = "";
@@ -448,10 +450,12 @@
         const btn = $("talk-btn");
         if (recording) { recording = false; btn.disabled = true; await Recorder.stop(); return; }
         $("talk-error").classList.add("hidden");
+        btn.disabled = true; // evita re-entrar start() durante el prompt de getUserMedia
         try {
           await Recorder.start(sendAnswer);
-          recording = true; btn.textContent = "Detener";
+          recording = true; btn.textContent = "Detener"; btn.disabled = false;
         } catch (_) {
+          btn.disabled = false;
           $("talk-error").textContent = "No pudimos usar el micrófono. Revisa los permisos.";
           $("talk-error").classList.remove("hidden");
         }
