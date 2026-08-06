@@ -32,9 +32,29 @@ class LimitsService:
             return Decision(DecisionKind.QUOTA)
         return Decision(DecisionKind.ALLOW)
 
+    def check_can_read(self, user_id: str) -> Decision:
+        """Decide si `user_id` puede evaluar una lectura.
+
+        Misma precedencia que `check_can_start` (tope total → presupuesto diario → cuota),
+        pero contra el contador de lecturas. El presupuesto en dólares es el mismo para las
+        dos modalidades porque el dinero es uno solo; la cuota es distinta porque leer y
+        conversar son prácticas separadas y gastar una con la otra sería confuso.
+        """
+        if self._store.total_cost_usd() >= settings.TOTAL_BUDGET_USD:
+            return Decision(DecisionKind.PAUSED_TOTAL)
+        if self._store.daily_cost_usd() >= settings.DAILY_BUDGET_USD:
+            return Decision(DecisionKind.PAUSED_DAILY)
+        if self._store.reading_count(user_id) >= settings.USER_READING_QUOTA:
+            return Decision(DecisionKind.QUOTA)
+        return Decision(DecisionKind.ALLOW)
+
     def record_conversation_start(self, user_id: str, conversation_id: str) -> None:
         """Registra el inicio de una conversación (cuenta para la cuota del usuario)."""
         self._store.add_conversation_start(user_id, conversation_id)
+
+    def record_reading_start(self, user_id: str, reading_id: int) -> None:
+        """Registra una evaluación de lectura (cuenta para la cuota de lectura)."""
+        self._store.add_reading_start(user_id, reading_id)
 
     def record_gemini_usage(
         self,
@@ -53,12 +73,21 @@ class LimitsService:
         return cost
 
     def record_azure_usage(
-        self, user_id: str, conversation_id: str, audio_seconds: float
+        self,
+        user_id: str,
+        conversation_id: str,
+        audio_seconds: float,
+        kind: str = "assessment",
     ) -> float:
-        """Calcula y persiste el costo de la evaluación de Azure. Devuelve el costo en USD."""
+        """Calcula y persiste el costo de la evaluación de Azure. Devuelve el costo en USD.
+
+        `kind` distingue la modalidad que gastó ("assessment" en la conversación,
+        "reading_assessment" en la lectura), para poder separar costos por modalidad sin
+        tener que cruzar `usage_events` contra otra tabla.
+        """
         cost = azure_cost_usd(audio_seconds)
         self._store.add_usage_event(
-            user_id, conversation_id, "azure", "assessment",
+            user_id, conversation_id, "azure", kind,
             0, 0, audio_seconds, cost,
         )
         return cost
