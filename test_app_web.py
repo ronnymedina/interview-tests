@@ -35,3 +35,14 @@ def test_stylesheet_is_served():
     response = _client().get("/static/app.css")
     assert response.status_code == 200
     assert "--cream" in response.text
+
+
+def test_shared_script_is_served():
+    response = _client().get("/static/shared.js")
+    assert response.status_code == 200
+    assert "createRecorder" in response.text
+    assert "encodeWav" in response.text
+
+
+def test_index_loads_shared_script():
+    assert "/static/shared.js" in _client().get("/").text
