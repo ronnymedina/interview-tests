@@ -76,6 +76,32 @@ de Azure Speech (Pronunciation Assessment) te dice que palabras y que sonidos fa
 
 Cada intento queda guardado en `attempts.db` (sqlite) y aparece en el historial.
 
+## Practica de lectura (modulo `app/`)
+
+El modulo migrado (`app/`, el que corre con docker-compose) tiene dos modalidades:
+
+- `/` — **conversacion**: el tutor pregunta, tu respondes hablando.
+- `/reading` — **lectura en voz alta**: la app te da un texto real, lo lees, y Azure
+  evalua tu pronunciacion **contra ese texto**. La pantalla es de dos paneles: a la
+  izquierda el texto, a la derecha lo que vas diciendo, que al terminar se convierte en
+  el review con las palabras coloreadas y las omisiones tachadas sobre el texto real.
+
+A diferencia del legacy, aca no escribes ni guardas tus propios textos: el catalogo se
+puebla solo desde Engoo Daily News con un job periodico. Si `/reading` responde **503**,
+es que el catalogo esta vacio; poblalo con:
+
+```bash
+python -m app.reading.ingest
+```
+
+El servidor tambien corre esa ingesta al arrancar si la tabla esta vacia, y luego cada
+`READING_INGEST_INTERVAL_HOURS`.
+
+El texto que se lee es un **extracto** del articulo (`READING_MAX_WORDS`, 120 por
+defecto), recortado en limite de oracion. El articulo se guarda completo; el recorte se
+calcula al servir y se vuelve a calcular al evaluar, a partir del id del texto. Por eso el
+navegador nunca manda el texto de referencia: lo pone el servidor.
+
 ## Archivos
 
 | Archivo | Que hace |
