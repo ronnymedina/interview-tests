@@ -151,6 +151,12 @@ class Settings(BaseSettings):
         "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
     )
 
+    # --- Practica de lectura: lo que se lee y cuanto se puede leer ------------------------
+    # Tamano del extracto que se lee en voz alta. 120 palabras son ~40-60 s de lectura:
+    # suficiente para que Azure tenga senal, y corto para que el usuario no se canse.
+    # El articulo se guarda completo; el recorte se calcula al servir (app/reading/excerpt).
+    READING_MAX_WORDS: int = Field(default=120, gt=0)
+
     @property
     def log_format_resolved(self) -> Literal["console", "json"]:
         """Resuelve LOG_FORMAT="auto" mirando si la salida es una terminal.
