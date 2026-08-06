@@ -117,6 +117,18 @@ class AzureSpeechClient:
         return state
 
     @staticmethod
+    def make_omission_word(text: str) -> "speechsdk.PronunciationAssessmentWordResult":
+        """Crea un objeto-palabra sintético marcado como omisión (no se pronunció).
+
+        Azure no reporta las palabras que el usuario se saltó: solo devuelve lo que oyó. Las
+        omisiones se derivan comparando contra el texto de referencia, y hacen falta como
+        objetos del SDK para que el resto del agregado las trate igual que a las reales.
+        """
+        return speechsdk.PronunciationAssessmentWordResult(
+            {"Word": text, "PronunciationAssessment": {"ErrorType": "Omission"}}
+        )
+
+    @staticmethod
     def word_to_dict(word: "speechsdk.PronunciationAssessmentWordResult") -> dict:
         """Convierte una palabra del SDK al dict plano que consume la página."""
         try:
