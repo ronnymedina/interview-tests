@@ -117,3 +117,104 @@ def test_la_pagina_de_lectura_se_renderiza(client):
     res = client.get("/reading")
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
+
+
+# --- POST /reading/assess ---------------------------------------------------------------
+
+ASSESS_RESULT = {
+    "recognized_text": "one two three",
+    "scores": {"pronunciation": 88.0, "completeness": 100.0},
+    "words": [{"word": "one", "accuracy": 90.0, "error_type": "None", "phonemes": []}],
+    "audio_seconds": 12.5,
+    "reference_text": "One two three.",
+}
+
+
+def _post_assess(client, reading_id=7):
+    return client.post(
+        "/reading/assess",
+        data={"reading_id": str(reading_id)},
+        files={"audio": ("a.wav", b"fake wav bytes", "audio/wav")},
+        headers=HEADERS,
+    )
+
+
+def test_assess_devuelve_los_scores(client):
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService(
+        assess_result=ASSESS_RESULT
+    )
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    res = _post_assess(client)
+
+    assert res.status_code == 200
+    assert res.json()["scores"]["completeness"] == 100.0
+
+
+def test_assess_cobra_la_cuota_y_el_costo(client):
+    limits = FakeLimits()
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService(
+        assess_result=ASSESS_RESULT
+    )
+    app.dependency_overrides[get_limits_service] = lambda: limits
+
+    _post_assess(client)
+
+    assert limits.reading_starts == [("u1", 7)]
+    assert limits.azure_usage == [("u1", "7", 12.5, "reading_assessment")]
+
+
+def test_assess_corta_con_429_sin_cuota(client):
+    limits = FakeLimits(Decision(DecisionKind.QUOTA))
+    service = FakeReadingService(assess_result=ASSESS_RESULT)
+    app.dependency_overrides[get_reading_service] = lambda: service
+    app.dependency_overrides[get_limits_service] = lambda: limits
+
+    res = _post_assess(client)
+
+    assert res.status_code == 429
+    assert res.json()["detail"]["reason"] == "quota"
+    # No se llamó a Azure: los límites se comprueban ANTES de gastar.
+    assert service.assessed is None
+
+
+def test_assess_con_id_inexistente_es_404(client):
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService(
+        error=ReadingError("no existe", status=404)
+    )
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    assert _post_assess(client, reading_id=999).status_code == 404
+
+
+def test_assess_no_cobra_si_azure_falla(client):
+    """Un 502 de Azure no debe gastarle una lectura al usuario."""
+    limits = FakeLimits()
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService(
+        error=ReadingError("Azure canceló", status=502)
+    )
+    app.dependency_overrides[get_limits_service] = lambda: limits
+
+    res = _post_assess(client)
+
+    assert res.status_code == 502
+    assert limits.reading_starts == []
+    assert limits.azure_usage == []
+
+
+def test_assess_ignora_un_reference_text_enviado_por_el_cliente(client):
+    """El texto lo pone el servidor: si no, cualquiera evalúa 'hello' contra 'hello'."""
+    service = FakeReadingService(assess_result=ASSESS_RESULT)
+    app.dependency_overrides[get_reading_service] = lambda: service
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    res = client.post(
+        "/reading/assess",
+        data={"reading_id": "7", "reference_text": "hello"},
+        files={"audio": ("a.wav", b"fake wav bytes", "audio/wav")},
+        headers=HEADERS,
+    )
+
+    assert res.status_code == 200
+    # El servicio solo recibió el id y el audio; el texto extra se descartó.
+    assert service.assessed == (7, b"fake wav bytes")
