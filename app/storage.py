@@ -77,6 +77,17 @@ _SCHEMA: tuple[LiteralString, ...] = (
     """
     CREATE INDEX IF NOT EXISTS reading_texts_level_idx ON reading_texts (level);
     """,
+    """
+    CREATE TABLE IF NOT EXISTS reading_starts (
+        id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        user_id    TEXT NOT NULL,
+        reading_id INTEGER NOT NULL
+    );
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS reading_starts_user_idx ON reading_starts (user_id);
+    """,
 )
 
 
