@@ -17,7 +17,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
-import config
+from config import settings
 
 # Plantilla base del tutor (system message en runtime). El material del usuario (CLIENT_FOCUS)
 # se inserta como DATO entre los marcadores. Se descartan las secciones que el grafo ya maneja
@@ -197,7 +197,7 @@ _graph = None
 def _get_llm():
     global _llm
     if _llm is None:
-        if not config.GEMINI_API_KEY:
+        if not settings.GEMINI_API_KEY:
             raise ConversationError(
                 "Falta GEMINI_API_KEY en el archivo .env. Copia .env.example a .env "
                 "y pon tu clave de Gemini.",
@@ -206,7 +206,7 @@ def _get_llm():
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         _llm = ChatGoogleGenerativeAI(
-            model=config.GEMINI_MODEL, google_api_key=config.GEMINI_API_KEY
+            model=settings.GEMINI_MODEL, google_api_key=settings.GEMINI_API_KEY
         )
     return _llm
 

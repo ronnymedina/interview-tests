@@ -10,7 +10,7 @@ import uuid
 
 from langchain_core.messages import HumanMessage
 
-import config
+from config import settings
 
 from .graph import build_graph, initial_state
 from .synthesizer import Synthesizer
@@ -96,10 +96,10 @@ class ConversationService:
 def build_llm():
     """Construye el LLM leyendo la configuración. Falla claro si falta la clave.
 
-    Usa `init_chat_model`: el proveedor y el modelo salen de `config.CHAT_MODEL`
+    Usa `init_chat_model`: el proveedor y el modelo salen de `settings.CHAT_MODEL`
     (formato "proveedor:modelo"), así cambiar de proveedor es cambiar config, no código.
     """
-    if not config.GEMINI_API_KEY:
+    if not settings.GEMINI_API_KEY:
         raise ConversationError(
             "Falta GEMINI_API_KEY en el archivo .env. Copia .env.example a .env "
             "y pon tu clave de Gemini.",
@@ -107,7 +107,7 @@ def build_llm():
         )
     from langchain.chat_models import init_chat_model
 
-    return init_chat_model(config.CHAT_MODEL, api_key=config.GEMINI_API_KEY)
+    return init_chat_model(settings.CHAT_MODEL, api_key=settings.GEMINI_API_KEY)
 
 
 def build_service(checkpointer=None) -> ConversationService:

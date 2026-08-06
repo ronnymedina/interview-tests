@@ -7,7 +7,7 @@ mantienen tras separar la conexion a Azure en azure_speech.AzureSpeechClient.
 import azure.cognitiveservices.speech as speechsdk
 import pytest
 
-import config
+from config import settings
 import speech
 from azure_speech import AzureSpeechError
 
@@ -48,7 +48,7 @@ class FakeClient:
 @pytest.fixture(autouse=True)
 def _key(monkeypatch):
     """assess() exige una key; en los tests basta una cualquiera."""
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "test-key")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "test-key")
 
 
 def test_normalized_reference_is_passed_to_client():
@@ -88,7 +88,7 @@ def test_recognized_text_joins_segments():
 
 
 def test_missing_key_raises_500(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "")
     with pytest.raises(speech.SpeechError) as error:
         speech.assess("a.wav", "hello", client=FakeClient(make_state([], [])))
     assert error.value.status == 500
@@ -158,7 +158,7 @@ def test_unscripted_no_speech_raises_422():
 
 
 def test_unscripted_missing_key_raises_500(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "")
     with pytest.raises(speech.SpeechError) as error:
         speech.assess_unscripted("a.wav", client=FakeClient(make_state([], [])))
     assert error.value.status == 500

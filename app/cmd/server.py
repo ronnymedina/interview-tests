@@ -14,9 +14,12 @@ Sirve además el frontend (`app/web/`): las páginas se renderizan con plantilla
 (`app/web/templates/`) y los archivos estáticos van montados bajo `/static`.
 """
 
-import logging
-from contextlib import asynccontextmanager
+import asyncio
+import uuid
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+
+import structlog
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -24,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from langchain_core.callbacks import get_usage_metadata_callback
 
-import config
+from config import settings
 from app import conversation
 from app.ratelimit import IpRateLimiter, client_ip
 from app.conversation import (
@@ -35,10 +38,19 @@ from app.conversation import (
 )
 from app.feedback import FeedbackRepository, FeedbackRequest
 from app.limits import LimitsService, build_limits_service
+from app.logconfig import configure_logging
+from app.reading.ingest import build_default_ingest
+from app.reading.scheduler import ingest_loop
 from app.speech import SpeechService, build_speech_service
 from app.storage import PostgresStorage
 
-logger = logging.getLogger(__name__)
+# Al importar y no solo en el `lifespan`: uvicorn importa este módulo antes de emitir sus
+# primeras líneas ("Started server process"), y sin esto esas líneas salen con el formato de
+# uvicorn en vez del nuestro — texto suelto que el agregador no puede parsear. La función es
+# idempotente, así que la llamada del `lifespan` no duplica nada.
+configure_logging()
+
+logger = structlog.get_logger(__name__)
 
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 _TEMPLATES_DIR = _WEB_DIR / "templates"
@@ -64,7 +76,7 @@ def _build_conversation_service() -> ConversationService | None:
 _conversation_service = _build_conversation_service()
 # El almacenamiento es perezoso (no conecta al construirse), así que el repositorio siempre
 # está disponible; si Postgres está caído, el error aparece al ejecutar la consulta.
-_storage = PostgresStorage(config.DATABASE_URL)
+_storage = PostgresStorage(settings.DATABASE_URL)
 _repository = ConversationRepository(_storage)
 
 # LimitsService: SIEMPRE se construye (la cuota/presupuesto son parte del piloto). Comparte el
@@ -84,9 +96,9 @@ _feedback_repository = FeedbackRepository(_storage)
 # presupuesto por usuario. Los endpoints caros (start/answer) tienen su propio tope.
 _rate_limiter = IpRateLimiter(
     {
-        "global": config.RATE_LIMIT_GLOBAL_PER_MIN,
-        "start": config.RATE_LIMIT_START_PER_MIN,
-        "answer": config.RATE_LIMIT_ANSWER_PER_MIN,
+        "global": settings.RATE_LIMIT_GLOBAL_PER_MIN,
+        "start": settings.RATE_LIMIT_START_PER_MIN,
+        "answer": settings.RATE_LIMIT_ANSWER_PER_MIN,
     }
 )
 # (método, ruta) -> scope extra (además del 'global' que aplica a todo el tráfico).
@@ -99,15 +111,54 @@ _RATE_SCOPES = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Al arrancar intenta crear la tabla si falta (uso standalone); si Postgres está caído,
-    lo registra y sigue: en docker-compose la tabla ya viene del init.sql."""
+    lo registra y sigue: en docker-compose la tabla ya viene del init.sql.
+
+    Además levanta la ingesta de textos de lectura como tarea de fondo. Va acá y no en un
+    proceso aparte porque no necesita uno: es un `sleep` largo entre corridas. Se cancela al
+    apagar, y el `await` posterior espera a que termine de verdad."""
+    # Va acá y no al importar el módulo: uvicorn configura su propio logging al arrancar, y
+    # si lo hiciéramos antes nos lo pisaría.
+    configure_logging()
     try:
         _storage.init_schema()
     except Exception:
         logger.exception("No se pudo inicializar el esquema de Postgres; ¿está la BD arriba?")
-    yield
+
+    source, store = build_default_ingest()
+    ingest_task = asyncio.create_task(ingest_loop(source, store))
+    try:
+        yield
+    finally:
+        ingest_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await ingest_task
 
 
 app = FastAPI(title="review-ingles", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    """Ata un `request_id` al contexto para que TODO lo que se loguee durante el request lo
+    lleve, sin que ninguna función tenga que recibirlo ni pasarlo.
+
+    Es lo que permite reconstruir qué pasó en una request concreta cuando algo falla: en el
+    agregador se filtra por ese id y aparecen en orden los eventos de todas las capas,
+    incluidos los de uvicorn y los de las librerías.
+
+    Respeta un `X-Request-ID` entrante para no romper la traza si hay un proxy adelante que
+    ya la empezó.
+    """
+    request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+    try:
+        response = await call_next(request)
+    finally:
+        # Limpiar siempre: el contexto vive en la task, y sin esto un id podría filtrarse a
+        # otro request si el worker reutiliza el contexto.
+        structlog.contextvars.clear_contextvars()
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 @app.middleware("http")

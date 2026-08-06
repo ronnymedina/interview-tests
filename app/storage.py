@@ -2,12 +2,12 @@
 
 Envuelve la creación de conexiones para que los repositorios reciban esto por
 inyección de dependencia y no sepan dónde ni cómo se abre la base. Se instancia
-una vez (en `main`, con `config.DATABASE_URL`) y se inyecta a cada repositorio.
+una vez (en `main`, con `settings.DATABASE_URL`) y se inyecta a cada repositorio.
 """
 
-from collections.abc import Generator
-from contextlib import contextmanager
-from typing import cast
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager, contextmanager
+from typing import LiteralString, cast
 
 import psycopg
 from psycopg.rows import DictRow, dict_row
@@ -16,7 +16,7 @@ from psycopg.rows import DictRow, dict_row
 # contenedor Postgres (docker/initdb/*.sql); se expone acá para poder crear el esquema
 # desde código en un entorno standalone. Una sentencia por elemento (psycopg ejecuta una
 # sentencia por llamada a execute).
-_SCHEMA: tuple[str, ...] = (
+_SCHEMA: tuple[LiteralString, ...] = (
     """
     CREATE TABLE IF NOT EXISTS conversation_configs (
         id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -114,3 +114,51 @@ class PostgresStorage:
         with self.connect() as conn:
             for statement in _SCHEMA:
                 conn.execute(statement)
+
+
+class AsyncPostgresStorage:
+    """Gemelo asíncrono de PostgresStorage, sobre el mismo psycopg 3.
+
+    psycopg 3 trae asyncio nativo (`AsyncConnection`), así que no hace falta un segundo
+    driver: es la misma librería, el mismo dialecto de parámetros y el mismo `dict_row`.
+
+    Existe porque `app/reading` corre dentro del event loop (el script de ingesta y la tarea
+    periódica del servidor), y ahí una conexión bloqueante frenaría todo lo demás. Convive
+    con la versión sincrónica, que sigue sirviendo a los repositorios ya migrados; cuando
+    esos pasen a async, esta queda como única.
+
+    No usa pool a propósito: la ingesta abre una conexión por corrida y la cierra. Un pool
+    tendría sentido si esto atendiera requests.
+    """
+
+    def __init__(self, dsn: str) -> None:
+        self._dsn = dsn
+
+    @asynccontextmanager
+    async def connect(self) -> AsyncGenerator[psycopg.AsyncConnection[DictRow], None]:
+        """Abre una conexión nueva, la entrega, y al salir hace commit/rollback y la cierra.
+
+        El `finally` con `close()` no es decorativo: psycopg 3 abre una transacción con el
+        primer `execute` (no está en autocommit), incluso si es un SELECT. Sin el cierre,
+        una excepción dejaría la conexión colgada e *idle in transaction* del lado del
+        servidor, reteniendo snapshots. En la tarea periódica, que vive días, cada fallo
+        filtraría una conexión.
+        """
+        # Mismo cast + ignore que en la versión sincrónica: los stubs de psycopg no
+        # resuelven el overload de `connect(..., row_factory=dict_row)`.
+        raw = await psycopg.AsyncConnection.connect(self._dsn, row_factory=dict_row)  # type: ignore[call-overload]
+        conn = cast("psycopg.AsyncConnection[DictRow]", raw)
+        try:
+            yield conn
+            await conn.commit()
+        except Exception:
+            await conn.rollback()
+            raise
+        finally:
+            await conn.close()
+
+    async def init_schema(self) -> None:
+        """Crea las tablas de app/ si no existen (uso standalone, sin compose)."""
+        async with self.connect() as conn:
+            for statement in _SCHEMA:
+                await conn.execute(statement)
