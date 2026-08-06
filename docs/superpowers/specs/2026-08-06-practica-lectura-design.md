@@ -25,10 +25,18 @@ el review.
 No hay scraping, ni endpoints de lectura, ni pantalla nueva en esta fase. El catálogo se
 puede poblar a mano por SQL para probar.
 
-### Fase 2 — siguiente
+### Fase 2 — ejecutada
 
 Script de ingesta desde Engoo, job periódico, endpoints `/reading/random` y
 `/reading/assess`, pantalla de lectura, y `assess_scripted` en `app/speech`.
+
+El detalle de esta fase, con las decisiones que cambiaron respecto de lo que dice más
+abajo, vive en [2026-08-06-practica-lectura-fase2-design.md](2026-08-06-practica-lectura-fase2-design.md).
+El cambio principal: **no hay caché en memoria del extracto**. La sección "Endpoints (fase
+2)" de este documento proponía guardar `reading_id → excerpt` con TTL; se descartó porque
+`make_excerpt` es determinista, así que el servidor recalcula el extracto releyendo la fila
+por su id. Se evita así el estado en proceso, que moriría en cada redeploy y no se
+compartiría entre workers.
 
 ### Fuera de alcance (por ahora)
 
