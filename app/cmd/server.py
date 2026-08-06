@@ -39,10 +39,11 @@ from app.conversation import (
 from app.feedback import FeedbackRepository, FeedbackRequest
 from app.limits import LimitsService, build_limits_service
 from app.logconfig import configure_logging
+from app.reading import ReadingError, ReadingService, build_reading_service
 from app.reading.ingest import build_default_ingest
 from app.reading.scheduler import ingest_loop
 from app.speech import SpeechService, build_speech_service
-from app.storage import PostgresStorage
+from app.storage import AsyncPostgresStorage, PostgresStorage
 
 # Al importar y no solo en el `lifespan`: uvicorn importa este módulo antes de emitir sus
 # primeras líneas ("Started server process"), y sin esto esas líneas salen con el formato de
@@ -91,6 +92,11 @@ if _speech_service is None:
     logger.info("AZURE_SPEECH_KEY ausente: scoring de pronunciación deshabilitado.")
 
 _feedback_repository = FeedbackRepository(_storage)
+
+# ReadingService: usa el almacenamiento ASÍNCRONO, porque app/reading corre dentro del event
+# loop. Convive con `_storage`, el síncrono, que sirve a los repositorios aún no migrados.
+_async_storage = AsyncPostgresStorage(settings.DATABASE_URL)
+_reading_service = build_reading_service(_async_storage)
 
 # Rate limiter por IP (en memoria): protege el servidor de floods, aparte de la cuota/
 # presupuesto por usuario. Los endpoints caros (start/answer) tienen su propio tope.
@@ -205,6 +211,11 @@ def get_limits_service() -> LimitsService:
 def get_speech_service() -> "SpeechService | None":
     """Dependencia FastAPI: entrega el servicio de pronunciación, o None si Azure no está."""
     return _speech_service
+
+
+def get_reading_service() -> ReadingService:
+    """Dependencia FastAPI: entrega el servicio de la práctica de lectura."""
+    return _reading_service
 
 
 def get_feedback_repository() -> FeedbackRepository:
@@ -322,6 +333,38 @@ def conversation_answer(
     return result
 
 
+# --- práctica de lectura --------------------------------------------------------------
+
+@app.get("/reading/random")
+async def reading_random(
+    user_id: str = Depends(get_user_id),
+    reading: ReadingService = Depends(get_reading_service),
+    limits: LimitsService = Depends(get_limits_service),
+) -> dict:
+    """Entrega un texto al azar del catálogo, ya recortado al extracto que se lee.
+
+    Consulta los límites para avisar temprano si no se va a poder evaluar, pero NO consume
+    cuota: pedir un texto no cuesta dinero, evaluarlo sí.
+
+    Es `async def` porque el repositorio de lectura usa psycopg asíncrono; por eso la llamada
+    a `limits`, que es sincrónica y va a Postgres, se aparta a un hilo: dentro del event loop
+    bloquearía a todos los demás usuarios mientras dura la consulta.
+    """
+    try:
+        decision = await asyncio.to_thread(limits.check_can_read, user_id)
+    except Exception:
+        logger.exception("check_can_read falló (¿Postgres?); se corta conservador como 'paused'.")
+        raise HTTPException(status_code=429, detail={"reason": "paused"})
+
+    if not decision.allowed:
+        raise HTTPException(status_code=429, detail={"reason": decision.reason})
+
+    try:
+        return await reading.random_excerpt()
+    except ReadingError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+
+
 @app.post("/feedback", status_code=201)
 def feedback_create(
     payload: FeedbackRequest,
@@ -397,3 +440,9 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 def index(request: Request) -> HTMLResponse:
     """Sirve la página de la conversación."""
     return _templates.TemplateResponse(request, "index.html")
+
+
+@app.get("/reading", response_class=HTMLResponse)
+def reading_page(request: Request) -> HTMLResponse:
+    """Sirve la pantalla de práctica de lectura (dos paneles)."""
+    return _templates.TemplateResponse(request, "reading.html")
