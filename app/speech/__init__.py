@@ -4,7 +4,7 @@ Expone el servicio inyectable y su construcción desde config. La conexión con 
 azure_client.py; la lógica de scoring en assessment.py y scoring.py.
 """
 
-from app.speech.assessment import SpeechError
+from app.speech.assessment import SpeechError, assess_scripted
 from app.speech.service import SpeechService, build_speech_service
 
-__all__ = ["SpeechService", "SpeechError", "build_speech_service"]
+__all__ = ["SpeechService", "SpeechError", "assess_scripted", "build_speech_service"]
