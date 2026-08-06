@@ -44,9 +44,9 @@ def test_level_is_nullable():
 
 def test_schema_has_index_as_separate_statement():
     """psycopg ejecuta una sentencia por execute(): el índice va en su propio elemento."""
-    index_statements = [s for s in _SCHEMA if "CREATE INDEX" in s]
+    index_statements = [s for s in _SCHEMA if "reading_texts_level_idx" in s]
     assert len(index_statements) == 1
-    assert "reading_texts_level_idx" in index_statements[0]
+    assert "CREATE TABLE" not in index_statements[0]
 
 
 def test_initdb_sql_matches_schema():
