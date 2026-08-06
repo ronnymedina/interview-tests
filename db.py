@@ -4,7 +4,7 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 
-import config
+from config import settings
 
 SCHEMA = """
 -- Textos guardados que el usuario practica una y otra vez.
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS conversation_prompts (
 
 
 def _connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(settings.DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

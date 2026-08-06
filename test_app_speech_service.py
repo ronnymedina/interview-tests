@@ -1,6 +1,6 @@
 """Tests del SpeechService: construcción desde config e integración cola+agregación."""
 
-import config
+from config import settings
 from app.speech import SpeechService, build_speech_service
 
 
@@ -20,12 +20,12 @@ def fake_result(seconds, words):
 
 
 def test_build_returns_none_without_key(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "")
     assert build_speech_service() is None
 
 
 def test_build_returns_service_with_key(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "test-key")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "test-key")
     service = build_speech_service()
     assert isinstance(service, SpeechService)
 

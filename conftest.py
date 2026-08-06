@@ -2,7 +2,7 @@
 
 import pytest
 
-import config
+from config import settings
 import db
 
 
@@ -33,7 +33,7 @@ def _reset_rate_limiter():
 def temp_db(tmp_path, monkeypatch):
     """Apunta la BD a un archivo temporal y crea el esquema limpio."""
     db_file = tmp_path / "test.db"
-    monkeypatch.setattr(config, "DB_PATH", str(db_file))
+    monkeypatch.setattr(settings, "DB_PATH", str(db_file))
     db.init_db()
     return str(db_file)
 

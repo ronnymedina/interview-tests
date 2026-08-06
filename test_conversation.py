@@ -3,7 +3,7 @@
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-import config
+from config import settings
 import conversation
 
 
@@ -156,7 +156,7 @@ def test_answer_after_finished_raises_409_and_does_not_reinvoke_graph():
 
 def test_start_without_api_key_raises_500(monkeypatch):
     """Sin GEMINI_API_KEY, _get_graph() debe fallar con 500 al construir el grafo real."""
-    monkeypatch.setattr(config, "GEMINI_API_KEY", "")
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "")
     monkeypatch.setattr(conversation, "_llm", None)
     monkeypatch.setattr(conversation, "_graph", None)
 

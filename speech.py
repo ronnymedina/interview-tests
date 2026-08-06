@@ -12,7 +12,7 @@ reconocido contra el texto de referencia (con difflib), tal como el sample ofici
 import difflib
 import string
 
-import config
+from config import settings
 from azure_speech import AzureSpeechClient, AzureSpeechError
 
 
@@ -30,7 +30,7 @@ def assess(wav_path: str, reference_text: str, client: AzureSpeechClient | None 
     `client` permite inyectar un doble en los tests; en produccion se construye desde la
     configuracion.
     """
-    if not config.AZURE_SPEECH_KEY:
+    if not settings.AZURE_SPEECH_KEY:
         raise SpeechError(
             "Falta AZURE_SPEECH_KEY en el archivo .env. Copia .env.example a .env "
             "y pon tu clave de Azure.",
@@ -46,7 +46,7 @@ def assess(wav_path: str, reference_text: str, client: AzureSpeechClient | None 
 
     if client is None:
         client = AzureSpeechClient(
-            config.AZURE_SPEECH_KEY, config.AZURE_SPEECH_REGION, config.SPEECH_LANGUAGE
+            settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION, settings.SPEECH_LANGUAGE
         )
 
     try:
@@ -135,7 +135,7 @@ def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) ->
     completeness (requiere referencia). El texto reconocido sirve ademas como la
     transcripcion de lo que dijo el usuario.
     """
-    if not config.AZURE_SPEECH_KEY:
+    if not settings.AZURE_SPEECH_KEY:
         raise SpeechError(
             "Falta AZURE_SPEECH_KEY en el archivo .env. Copia .env.example a .env "
             "y pon tu clave de Azure.",
@@ -144,7 +144,7 @@ def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) ->
 
     if client is None:
         client = AzureSpeechClient(
-            config.AZURE_SPEECH_KEY, config.AZURE_SPEECH_REGION, config.SPEECH_LANGUAGE
+            settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION, settings.SPEECH_LANGUAGE
         )
 
     try:

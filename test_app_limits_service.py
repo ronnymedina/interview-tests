@@ -2,7 +2,7 @@
 
 import pytest
 
-import config
+from config import settings
 from app.limits.model import DecisionKind
 from app.limits.repository import UsageStore
 from app.limits.service import LimitsService
@@ -42,9 +42,9 @@ class FakeUsageStore:
 @pytest.fixture(autouse=True)
 def _budgets(monkeypatch):
     """Presupuestos y cuota fijos para que las decisiones sean deterministas."""
-    monkeypatch.setattr(config, "DAILY_BUDGET_USD", 3.0)
-    monkeypatch.setattr(config, "TOTAL_BUDGET_USD", 10.0)
-    monkeypatch.setattr(config, "USER_CONVERSATION_QUOTA", 3)
+    monkeypatch.setattr(settings, "DAILY_BUDGET_USD", 3.0)
+    monkeypatch.setattr(settings, "TOTAL_BUDGET_USD", 10.0)
+    monkeypatch.setattr(settings, "USER_CONVERSATION_QUOTA", 3)
 
 
 def test_allows_when_under_all_limits():
@@ -88,8 +88,8 @@ def test_record_conversation_start_delegates_to_store():
 
 
 def test_record_gemini_usage_computes_cost_and_stores_event(monkeypatch):
-    monkeypatch.setattr(config, "GEMINI_PRICE_INPUT_PER_1K", 0.01)
-    monkeypatch.setattr(config, "GEMINI_PRICE_OUTPUT_PER_1K", 0.03)
+    monkeypatch.setattr(settings, "GEMINI_PRICE_INPUT_PER_1K", 0.01)
+    monkeypatch.setattr(settings, "GEMINI_PRICE_OUTPUT_PER_1K", 0.03)
     store = FakeUsageStore()
     cost = LimitsService(store).record_gemini_usage("u1", "c1", "question", 2000, 1000)
     assert cost == pytest.approx(0.05)
@@ -101,7 +101,7 @@ def test_record_gemini_usage_computes_cost_and_stores_event(monkeypatch):
 
 
 def test_record_azure_usage_computes_cost_and_stores_event(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_PRICE_PER_SECOND", 0.0002)
+    monkeypatch.setattr(settings, "AZURE_SPEECH_PRICE_PER_SECOND", 0.0002)
     store = FakeUsageStore()
     cost = LimitsService(store).record_azure_usage("u1", "c1", 10.0)
     assert cost == pytest.approx(0.002)

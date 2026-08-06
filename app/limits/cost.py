@@ -5,18 +5,18 @@ cantidad consumida. El costo se calcula al registrar cada evento y se guarda ya 
 para que el total sea una simple suma (ver app/limits/repository.py).
 """
 
-import config
+from config import settings
 
 
 def gemini_cost_usd(input_tokens: int, output_tokens: int) -> float:
     """Costo en USD de una llamada a Gemini según tokens de entrada y salida."""
     cost = (
-        input_tokens / 1000 * config.GEMINI_PRICE_INPUT_PER_1K
-        + output_tokens / 1000 * config.GEMINI_PRICE_OUTPUT_PER_1K
+        input_tokens / 1000 * settings.GEMINI_PRICE_INPUT_PER_1K
+        + output_tokens / 1000 * settings.GEMINI_PRICE_OUTPUT_PER_1K
     )
     return round(cost, 6)
 
 
 def azure_cost_usd(audio_seconds: float) -> float:
     """Costo en USD de la evaluación de Azure según la duración de audio procesada."""
-    return round(audio_seconds * config.AZURE_SPEECH_PRICE_PER_SECOND, 6)
+    return round(audio_seconds * settings.AZURE_SPEECH_PRICE_PER_SECOND, 6)

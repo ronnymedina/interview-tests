@@ -15,6 +15,12 @@ dependencies = [
     "langsmith[claude-agent-sdk]>=0.10.10",
     "langchain>=0.3",
     "psycopg[binary]>=3.2",
+    # Ingesta de textos de lectura: httpx hace los requests asíncronos y BeautifulSoup lee
+    # el HTML de la fuente. Van acá y no en dev porque el job corre en producción.
+    "httpx>=0.28.1",
+    "beautifulsoup4>=4.13",
+    "structlog>=25.4",
+    "pydantic-settings>=2.14.2",
 ]
 
 # Herramientas de testing / calidad: NO van a la imagen de producción. El
@@ -22,7 +28,6 @@ dependencies = [
 # development y test.
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest>=9.1.1",
     "hypothesis>=6.164.0",
     "mutmut>=3.7.0",

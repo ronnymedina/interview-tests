@@ -6,7 +6,7 @@ evento. Depende de la interfaz `UsageStore`, no del Postgres concreto, así su l
 con un doble en memoria. La construcción real (`build_limits_service`) vive en __init__.py.
 """
 
-import config
+from config import settings
 from app.limits.cost import azure_cost_usd, gemini_cost_usd
 from app.limits.model import Decision, DecisionKind
 from app.limits.repository import UsageStore
@@ -24,11 +24,11 @@ class LimitsService:
         Precedencia: tope total → presupuesto diario → cuota del usuario → permitir. El
         presupuesto global protege el costo por encima de la cuota individual.
         """
-        if self._store.total_cost_usd() >= config.TOTAL_BUDGET_USD:
+        if self._store.total_cost_usd() >= settings.TOTAL_BUDGET_USD:
             return Decision(DecisionKind.PAUSED_TOTAL)
-        if self._store.daily_cost_usd() >= config.DAILY_BUDGET_USD:
+        if self._store.daily_cost_usd() >= settings.DAILY_BUDGET_USD:
             return Decision(DecisionKind.PAUSED_DAILY)
-        if self._store.conversation_count(user_id) >= config.USER_CONVERSATION_QUOTA:
+        if self._store.conversation_count(user_id) >= settings.USER_CONVERSATION_QUOTA:
             return Decision(DecisionKind.QUOTA)
         return Decision(DecisionKind.ALLOW)
 

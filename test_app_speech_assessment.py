@@ -3,7 +3,7 @@
 import azure.cognitiveservices.speech as speechsdk
 import pytest
 
-import config
+from config import settings
 from app.speech import assessment
 from app.speech.azure_client import AzureSpeechError
 
@@ -44,7 +44,7 @@ class FakeClient:
 @pytest.fixture(autouse=True)
 def _key(monkeypatch):
     """assess_unscripted exige una key; en los tests basta una cualquiera."""
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "test-key")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "test-key")
 
 
 def test_unscripted_passes_empty_reference():
@@ -97,7 +97,7 @@ def test_unscripted_no_speech_raises_422():
 
 
 def test_unscripted_missing_key_raises_500(monkeypatch):
-    monkeypatch.setattr(config, "AZURE_SPEECH_KEY", "")
+    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "")
     with pytest.raises(assessment.SpeechError) as error:
         assessment.assess_unscripted("a.wav", client=FakeClient(make_state([], [])))
     assert error.value.status == 500

@@ -26,6 +26,38 @@ cp .env.example .env   # copia la plantilla
 | `DB_PATH` | No | `attempts.db` | Ruta del archivo SQLite donde se guardan textos e intentos. |
 | `PORT` | No | `8000` | Puerto en el que escucha el servidor FastAPI (`http://127.0.0.1:<PORT>`). |
 
+### Logging estructurado (structlog)
+
+Todos los logs salen con el mismo contrato de campos, listos para Datadog, Loki o Elastic:
+`timestamp`, `status`, `message`, `service`, `env`, `version`, `logger.name`,
+`logger.thread_name`, `error.kind` / `error.message` / `error.stack` en las excepciones, y
+`request_id` en lo que se loguee durante un request HTTP.
+
+| Variable | Default | Descripcion |
+|---|---|---|
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` o `CRITICAL`. Un valor invalido impide arrancar, con un error que dice cual es. |
+| `LOG_FORMAT` | `auto` | `console` (legible, con colores), `json` (una linea por evento) o `auto`: consola si la salida es una terminal, JSON si no. En docker-compose la salida no es un TTY, asi que el contenedor emite JSON sin configurar nada. |
+| `DD_SERVICE` / `SERVICE_NAME` | `review-ingles` | Nombre del servicio (unified service tagging). |
+| `DD_ENV` / `ENVIRONMENT` | `development` | Entorno. |
+| `DD_VERSION` / `SERVICE_VERSION` | `0.1.0` | Version desplegada. Permite comparar el error entre releases. |
+
+Los nombres `DD_*` tienen prioridad porque son los que el agente de Datadog ya inyecta solo
+en un despliegue tipico; los alias sin prefijo evitan atar el proyecto a un proveedor.
+
+### Practica de lectura: ingesta del catalogo (`app/reading`)
+
+Ninguna es obligatoria: con los defaults la ingesta funciona tal cual.
+
+| Variable | Default | Descripcion |
+|---|---|---|
+| `READING_INGEST_INTERVAL_HOURS` | `24` | Cada cuantas horas repite la ingesta la tarea de fondo del servidor. |
+| `READING_INGEST_PAGES` | `3` | Paginas que se recorren por categoria. La ingesta corta antes si una pagina no trae articulos. |
+| `READING_MIN_LEVEL` / `READING_MAX_LEVEL` | `4` / `7` | Rango de dificultad. Se aplica como filtro en la URL de la fuente, asi que lo que queda fuera ni se descarga. |
+| `READING_INGEST_MAX_ARTICLES` | `60` | Tope de articulos por corrida. Se aplica sobre las categorias ya intercaladas, para que el recorte no sesgue el catalogo a un par de temas. |
+| `READING_INGEST_CONCURRENCY` | `5` | Cuantos articulos se bajan a la vez. |
+| `READING_HTTP_TIMEOUT_SECONDS` | `20` | Timeout de cada request a la fuente. |
+| `READING_USER_AGENT` | Googlebot | Engoo es una SPA: con un User-Agent normal devuelve el shell vacio, y el HTML renderizado aparece solo al declararse Googlebot. Es configurable porque depende de un comportamiento no documentado que puede cambiar. |
+
 ## Notas de seguridad
 
 - La unica variable **sensible** es `AZURE_SPEECH_KEY`. Tratala como una contrasena.
