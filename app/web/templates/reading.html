@@ -1,3 +1,42 @@
 {% extends "base.html" %}
+
 {% block title %}Lectura en voz alta{% endblock %}
-{% block content %}<div id="reading-root"></div>{% endblock %}
+{% block body_class %}reading{% endblock %}
+{% block nav_reading %}active{% endblock %}
+
+{% block content %}
+  <header>
+    <h1 id="reading-title">Lectura en voz alta</h1>
+    <p class="lead">
+      Lee el texto en voz alta. Al terminar, Azure te dice qué palabras fallaste.
+      <span id="reading-level" class="badge hidden"></span>
+      <a id="reading-source" href="#" target="_blank" rel="noopener" class="hidden">Artículo original ↗</a>
+    </p>
+  </header>
+
+  {# Fila de scores: sólo aparece en el estado de review. #}
+  <div id="reading-scores" class="scores hidden"></div>
+
+  <div class="split">
+    <section class="panel card">
+      <h2>Texto de referencia</h2>
+      <div id="reading-text" class="panel-body">Cargando un texto…</div>
+    </section>
+    <section class="panel card">
+      <h2 id="right-title">Lo que estás diciendo</h2>
+      <div id="reading-said" class="panel-body"></div>
+    </section>
+  </div>
+
+  <div class="row">
+    <button id="btn-record" type="button" disabled>Empezar a leer</button>
+    <button id="btn-another" type="button" class="ghost">Otro texto</button>
+    <span id="reading-timer" class="counter"></span>
+  </div>
+
+  <p id="reading-error" class="error hidden" role="alert"></p>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/reading.js"></script>
+{% endblock %}
