@@ -27,9 +27,22 @@ class UpsertResult:
         return self.inserted + self.updated
 
 
+@dataclass(frozen=True)
+class StoredReadingText:
+    """Un texto del catálogo junto con su id de base de datos.
+
+    `ReadingText` no lleva id porque las fuentes producen textos que todavía no existen en la
+    base. Una vez guardado, el id es lo que viaja al navegador y lo que permite recuperar el
+    mismo texto al evaluar el audio, sin que el cliente mande el texto de referencia.
+    """
+
+    id: int
+    text: ReadingText
+
+
 @runtime_checkable
 class ReadingTextStore(Protocol):
-    """Contrato de persistencia que necesita la ingesta."""
+    """Contrato de persistencia que necesitan la ingesta y el servicio de lectura."""
 
     async def upsert_many(self, texts: list[ReadingText]) -> UpsertResult:
         """Inserta o actualiza por `source_url`. Idempotente: correrlo dos veces con los
@@ -40,6 +53,14 @@ class ReadingTextStore(Protocol):
         """Cuántos textos hay en el catálogo."""
         ...
 
+    async def random(self) -> StoredReadingText | None:
+        """Un texto al azar del catálogo, o None si está vacío."""
+        ...
+
+    async def get(self, reading_id: int) -> StoredReadingText | None:
+        """El texto con ese id, o None si no existe."""
+        ...
+
 
 class PostgresReadingTextStore:
     """Adaptador Postgres de ReadingTextStore.
@@ -48,6 +69,11 @@ class PostgresReadingTextStore:
     `storage.connect()` y no crea la tabla (de eso se encarga `init_schema()` o el init del
     contenedor). `created_at` lo pone Postgres por DEFAULT.
     """
+
+    # Las columnas que hidratan un StoredReadingText. En una constante para que `random` y
+    # `get` no puedan divergir: si una trajera una columna menos, `_to_stored` fallaría solo
+    # en uno de los dos caminos.
+    _COLUMNS = "id, source, source_url, title, level, category, published_at, body"
 
     def __init__(self, storage: AsyncPostgresStorage) -> None:
         self._storage = storage
@@ -106,3 +132,45 @@ class PostgresReadingTextStore:
             ).fetchone()
         assert row is not None  # agregado sin GROUP BY siempre devuelve una fila
         return int(row["n"])
+
+    async def random(self) -> StoredReadingText | None:
+        """Una fila al azar.
+
+        `ORDER BY random()` escanea la tabla entera, lo que sería un problema con millones de
+        filas pero es irrelevante con las decenas o pocos cientos que produce la ingesta. La
+        alternativa (contar y elegir un offset) cuesta dos viajes y se desincroniza si la
+        ingesta inserta entre medio. Si el catálogo creciera de verdad, esto pasa a
+        TABLESAMPLE.
+        """
+        async with self._storage.connect() as conn:
+            row = await (
+                await conn.execute(
+                    f"SELECT {self._COLUMNS} FROM reading_texts ORDER BY random() LIMIT 1"
+                )
+            ).fetchone()
+        return None if row is None else self._to_stored(row)
+
+    async def get(self, reading_id: int) -> StoredReadingText | None:
+        """El texto con ese id. Es lo que permite reconstruir el extracto al evaluar."""
+        async with self._storage.connect() as conn:
+            row = await (
+                await conn.execute(
+                    f"SELECT {self._COLUMNS} FROM reading_texts WHERE id = %s", (reading_id,)
+                )
+            ).fetchone()
+        return None if row is None else self._to_stored(row)
+
+    @staticmethod
+    def _to_stored(row) -> StoredReadingText:
+        return StoredReadingText(
+            id=row["id"],
+            text=ReadingText(
+                source=row["source"],
+                source_url=row["source_url"],
+                title=row["title"],
+                body=row["body"],
+                level=row["level"],
+                category=row["category"],
+                published_at=row["published_at"],
+            ),
+        )
