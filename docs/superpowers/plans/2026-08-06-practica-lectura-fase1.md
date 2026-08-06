@@ -1,6 +1,6 @@
 # Práctica de lectura — Fase 1: cimientos
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Dejar listos los tres cimientos de la práctica de lectura —la tabla `reading_texts`, el frontend servido con plantillas Jinja2, y el JavaScript común extraído a `shared.js`— sin construir todavía el scraping, los endpoints ni la pantalla nueva.
 
@@ -51,7 +51,7 @@
 - Consumes: nada.
 - Produces: la tabla `reading_texts` con columnas `id, created_at, updated_at, source, source_url, title, level, category, published_at, body`. La fase 2 la consumirá desde `app/reading/repository.py` con `INSERT ... ON CONFLICT (source_url) DO UPDATE` y un `SELECT ... ORDER BY random() LIMIT 1`.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crear `test_app_reading_texts.py`:
 
@@ -115,12 +115,12 @@ def test_initdb_sql_matches_schema():
         assert column in sql, f"falta la columna {column} en el .sql del contenedor"
 ```
 
-- [ ] **Step 2: Correr el test para verificar que falla**
+- [x] **Step 2: Correr el test para verificar que falla**
 
 Run: `uv run pytest test_app_reading_texts.py -v`
 Expected: FAIL — `assert "reading_texts" in schema_sql` falla, y `test_initdb_sql_matches_schema` falla con `FileNotFoundError`.
 
-- [ ] **Step 3: Agregar la tabla a `_SCHEMA`**
+- [x] **Step 3: Agregar la tabla a `_SCHEMA`**
 
 En `app/storage.py`, dentro de la tupla `_SCHEMA`, después del bloque de `pilot_feedback` y antes del `)` que la cierra, agregar estos dos elementos:
 
@@ -144,7 +144,7 @@ En `app/storage.py`, dentro de la tupla `_SCHEMA`, después del bloque de `pilot
     """,
 ```
 
-- [ ] **Step 4: Crear el `.sql` del contenedor**
+- [x] **Step 4: Crear el `.sql` del contenedor**
 
 Crear `docker/initdb/04-reading-texts.sql`:
 
@@ -171,24 +171,24 @@ CREATE TABLE IF NOT EXISTS reading_texts (
 CREATE INDEX IF NOT EXISTS reading_texts_level_idx ON reading_texts (level);
 ```
 
-- [ ] **Step 5: Correr los tests para verificar que pasan**
+- [x] **Step 5: Correr los tests para verificar que pasan**
 
 Run: `uv run pytest test_app_reading_texts.py -v`
 Expected: PASS (5 tests).
 
-- [ ] **Step 6: Verificar que no se rompió nada**
+- [x] **Step 6: Verificar que no se rompió nada**
 
 Run: `uv run pytest -q`
 Expected: PASS — misma cantidad de tests que antes, más los 5 nuevos.
 
-- [ ] **Step 7: Verificar contra un Postgres real**
+- [x] **Step 7: Verificar contra un Postgres real**
 
 Run: `docker compose down -v && docker compose up -d db && sleep 8 && docker compose exec -T db psql -U review -d interview_ingles -c "\d reading_texts"`
 Expected: la tabla se lista con las 10 columnas y el índice `reading_texts_level_idx`.
 
 Nota: `down -v` borra el volumen. Es necesario porque Postgres solo corre los scripts de `initdb` al crear el volumen por primera vez; si ya existía, el `.sql` nuevo se ignora.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/storage.py docker/initdb/04-reading-texts.sql test_app_reading_texts.py
@@ -210,14 +210,14 @@ git commit -m "feat(reading): tabla reading_texts para el catálogo de textos"
 - Consumes: nada de la Task 1.
 - Produces: `templates/base.html` con los bloques `{% block title %}`, `{% block head %}`, `{% block content %}` y `{% block scripts %}`; los estáticos servidos bajo `/static`; y en `app/cmd/server.py` el objeto `_templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))`. La Task 3 y la fase 2 crean páginas nuevas con `{% extends "base.html" %}`.
 
-- [ ] **Step 1: Agregar la dependencia**
+- [x] **Step 1: Agregar la dependencia**
 
 En `pyproject.toml`, dentro de `[project].dependencies`, agregar `"jinja2>=3.1",` después de `"python-dotenv>=1.0",`.
 
 Run: `uv sync`
 Expected: instala jinja2 y actualiza `uv.lock`.
 
-- [ ] **Step 2: Escribir el test que falla**
+- [x] **Step 2: Escribir el test que falla**
 
 Crear `test_app_web.py`:
 
@@ -261,16 +261,16 @@ def test_stylesheet_is_served():
     assert "--cream" in response.text
 ```
 
-- [ ] **Step 3: Correr el test para verificar que falla**
+- [x] **Step 3: Correr el test para verificar que falla**
 
 Run: `uv run pytest test_app_web.py -v`
 Expected: FAIL — `test_index_links_shared_stylesheet` y `test_stylesheet_is_served` fallan (hoy el CSS está inline y no existe `/static`).
 
-- [ ] **Step 4: Extraer el CSS**
+- [x] **Step 4: Extraer el CSS**
 
 Crear `app/web/static/app.css` con el contenido de `app/web/index.html` líneas **7 a 147** (el interior del `<style>`, sin las etiquetas `<style>`/`</style>`), sin cambios en las reglas. Quitar la indentación sobrante de 6 espacios para que el archivo quede a nivel raíz.
 
-- [ ] **Step 5: Crear `base.html`**
+- [x] **Step 5: Crear `base.html`**
 
 Crear `app/web/templates/base.html`:
 
@@ -301,7 +301,7 @@ Crear `app/web/templates/base.html`:
 </html>
 ```
 
-- [ ] **Step 6: Crear `index.html` como plantilla**
+- [x] **Step 6: Crear `index.html` como plantilla**
 
 Crear `app/web/templates/index.html`:
 
@@ -325,7 +325,7 @@ Crear `app/web/templates/index.html`:
 
 Reemplazá cada comentario `{# ... #}` por el contenido real indicado, copiado **verbatim** desde `app/web/index.html`. El bloque `<div id="banner">` (líneas 153-156) y el `<div id="app">` (línea 158) **no** se copian: ya están en `base.html`.
 
-- [ ] **Step 7: Cablear las plantillas en el servidor**
+- [x] **Step 7: Cablear las plantillas en el servidor**
 
 En `app/cmd/server.py`, reemplazar la línea 41:
 
@@ -360,27 +360,27 @@ def index(request: Request) -> HTMLResponse:
     return _templates.TemplateResponse(request, "index.html")
 ```
 
-- [ ] **Step 8: Borrar la página estática vieja**
+- [x] **Step 8: Borrar la página estática vieja**
 
 Run: `git rm app/web/index.html`
 Expected: el archivo desaparece; su contenido ya vive repartido entre `templates/` y `static/app.css`.
 
-- [ ] **Step 9: Correr los tests**
+- [x] **Step 9: Correr los tests**
 
 Run: `uv run pytest test_app_web.py -v`
 Expected: PASS (4 tests).
 
-- [ ] **Step 10: Verificar que no se rompió la suite**
+- [x] **Step 10: Verificar que no se rompió la suite**
 
 Run: `uv run pytest -q`
 Expected: PASS. Prestá atención a `test_app_server_start.py` y `test_app_ratelimit.py`, que usan `TestClient` sobre el mismo `app` y podrían depender del mount viejo.
 
-- [ ] **Step 11: Verificar en el navegador**
+- [x] **Step 11: Verificar en el navegador**
 
 Run: `docker compose up -d --build`, después abrir `http://localhost:8000`.
 Expected: la página se ve **idéntica** a antes (mismos estilos, mismo wizard). Recorré los tres pasos: elegir voz → escribir contexto → llegar a la pantalla de hablar. En la consola del navegador no debe haber errores 404 de `/static/app.css`.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add pyproject.toml uv.lock app/web/templates app/web/static app/cmd/server.py test_app_web.py
@@ -408,7 +408,7 @@ git commit -m "refactor(web): servir el frontend con plantillas Jinja2 y estáti
   - `showBanner(reason: string|null)`
   - `scoreClass(score) → string`, `formatScore(score) → string|number`, `renderWord(word, speak) → HTMLElement`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Agregar al final de `test_app_web.py`:
 
@@ -424,12 +424,12 @@ def test_index_loads_shared_script():
     assert "/static/shared.js" in _client().get("/").text
 ```
 
-- [ ] **Step 2: Correr los tests para verificar que fallan**
+- [x] **Step 2: Correr los tests para verificar que fallan**
 
 Run: `uv run pytest test_app_web.py -v`
 Expected: FAIL — 404 en `/static/shared.js`.
 
-- [ ] **Step 3: Crear `shared.js` con lo que se mueve sin cambios**
+- [x] **Step 3: Crear `shared.js` con lo que se mueve sin cambios**
 
 Crear `app/web/static/shared.js` empezando por este encabezado y los bloques copiados **verbatim** desde `app/web/templates/index.html` (que los heredó de las líneas indicadas del `index.html` original):
 
@@ -448,7 +448,7 @@ Copiar a continuación, sin modificar:
 - `floatTo16BitPCM` y `encodeWav` — líneas 480-497
 - `scoreClass`, `formatScore`, `wordClass`, `wordTitle` — líneas 756-779
 
-- [ ] **Step 4: Agregar el grabador desacoplado**
+- [x] **Step 4: Agregar el grabador desacoplado**
 
 El `Recorder` actual (líneas 499-575) llama directo a `Oval`, `$("heard")` y `$("counter")`, que son de la pantalla de conversación. Agregar en su lugar esta fábrica a `shared.js`:
 
@@ -549,7 +549,7 @@ function createRecorder({
 }
 ```
 
-- [ ] **Step 5: Agregar el banner y el render de palabras**
+- [x] **Step 5: Agregar el banner y el render de palabras**
 
 Seguir en `shared.js` con estas dos piezas. `showBanner` es igual al original (líneas 578-591) porque `#banner` y `#app` ahora viven en `base.html`, o sea que existen en toda página:
 
@@ -628,7 +628,7 @@ function renderWord(word, speak) {
 }
 ```
 
-- [ ] **Step 6: Cargar `shared.js` desde `base.html`**
+- [x] **Step 6: Cargar `shared.js` desde `base.html`**
 
 En `app/web/templates/base.html`, reemplazar la línea `{% block scripts %}{% endblock %}` por:
 
@@ -639,7 +639,7 @@ En `app/web/templates/base.html`, reemplazar la línea `{% block scripts %}{% en
 
 Va **antes** del bloque para que las páginas puedan usar sus globales.
 
-- [ ] **Step 7: Adaptar `index.html` a lo extraído**
+- [x] **Step 7: Adaptar `index.html` a lo extraído**
 
 En el `<script>` de `app/web/templates/index.html`:
 
@@ -669,17 +669,17 @@ En el `<script>` de `app/web/templates/index.html`:
         words.forEach((w) => el.appendChild(renderWord(w, (t) => Tts.speak(t))));
 ```
 
-- [ ] **Step 8: Correr los tests**
+- [x] **Step 8: Correr los tests**
 
 Run: `uv run pytest test_app_web.py -v`
 Expected: PASS (6 tests).
 
-- [ ] **Step 9: Verificar la suite completa**
+- [x] **Step 9: Verificar la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS, sin regresiones.
 
-- [ ] **Step 10: Verificar en el navegador — este paso es el que importa**
+- [x] **Step 10: Verificar en el navegador — este paso es el que importa**
 
 Los tests de Python solo comprueban que los archivos se sirven; que el JavaScript funcione se verifica a mano. Run: `docker compose up -d --build`, abrir `http://localhost:8000` en Chrome y recorrer el flujo completo:
 
@@ -692,7 +692,7 @@ Los tests de Python solo comprueban que los archivos se sirven; que el JavaScrip
 
 Si algo de esto falla, el problema está en el desacople de los callbacks del Step 7, no en el backend.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add app/web/static/shared.js app/web/templates test_app_web.py
@@ -703,9 +703,9 @@ git commit -m "refactor(web): extraer a shared.js el JS común (identidad, API, 
 
 ## Verificación final de la fase
 
-- [ ] `uv run pytest -q` pasa entero.
-- [ ] `docker compose down -v && docker compose up -d --build` levanta, la tabla `reading_texts` existe, y la conversación funciona igual que antes de la fase.
-- [ ] Se puede insertar un texto a mano y leerlo, que es lo que habilita esta fase:
+- [x] `uv run pytest -q` pasa entero.
+- [x] `docker compose down -v && docker compose up -d --build` levanta, la tabla `reading_texts` existe, y la conversación funciona igual que antes de la fase.
+- [x] Se puede insertar un texto a mano y leerlo, que es lo que habilita esta fase:
 
 ```bash
 docker compose exec -T db psql -U review -d interview_ingles -c \
