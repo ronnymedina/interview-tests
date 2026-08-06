@@ -10,7 +10,8 @@ los endpoints solo traducen a HTTP. `/conversation/answer` recibe multipart (aud
 y valida sus campos inline. La síntesis del contexto al brief ocurre por DENTRO de `service.start`
 (no hay endpoint de síntesis).
 
-Sirve además el frontend simplificado estático (`app/web/`) en la raíz.
+Sirve además el frontend (`app/web/`): las páginas se renderizan con plantillas Jinja2
+(`app/web/templates/`) y los archivos estáticos van montados bajo `/static`.
 """
 
 import logging
@@ -18,8 +19,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from langchain_core.callbacks import get_usage_metadata_callback
 
 import config
@@ -39,6 +41,10 @@ from app.storage import PostgresStorage
 logger = logging.getLogger(__name__)
 
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+_TEMPLATES_DIR = _WEB_DIR / "templates"
+_STATIC_DIR = _WEB_DIR / "static"
+
+_templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 
 def _build_conversation_service() -> ConversationService | None:
@@ -329,6 +335,14 @@ def config_delete(
     repo.delete(config_id)
 
 
-# --- frontend estático (se monta al final para no tapar las rutas de la API) -----------
+# --- frontend ------------------------------------------------------------------------
+# Los estáticos van bajo /static (no en la raíz) para no tapar las rutas de la API, y cada
+# página es un endpoint que renderiza su plantilla.
 
-app.mount("/", StaticFiles(directory=str(_WEB_DIR), html=True), name="web")
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request) -> HTMLResponse:
+    """Sirve la página de la conversación."""
+    return _templates.TemplateResponse(request, "index.html")
