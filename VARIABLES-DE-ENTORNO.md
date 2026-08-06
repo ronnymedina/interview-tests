@@ -58,6 +58,14 @@ Ninguna es obligatoria: con los defaults la ingesta funciona tal cual.
 | `READING_HTTP_TIMEOUT_SECONDS` | `20` | Timeout de cada request a la fuente. |
 | `READING_USER_AGENT` | Googlebot | Engoo es una SPA: con un User-Agent normal devuelve el shell vacio, y el HTML renderizado aparece solo al declararse Googlebot. Es configurable porque depende de un comportamiento no documentado que puede cambiar. |
 
+### Practica de lectura: lo que se lee y cuanto se puede leer
+
+| Variable | Default | Descripcion |
+|---|---|---|
+| `READING_MAX_WORDS` | `120` | Palabras del extracto que se lee en voz alta (~40-60 s). El articulo se guarda completo; el recorte se calcula al servir, y se vuelve a calcular al evaluar. Cambiarlo cambia el texto de referencia de las lecturas nuevas. |
+| `USER_READING_QUOTA` | `10` | Lecturas evaluadas por usuario. Es un contador aparte de `USER_CONVERSATION_QUOTA`: leer no gasta tus conversaciones. El presupuesto en dolares (`DAILY_BUDGET_USD` / `TOTAL_BUDGET_USD`) si es compartido. |
+| `RATE_LIMIT_READING_PER_MIN` | `20` | Requests por minuto y por IP a `POST /reading/assess`. |
+
 ## Notas de seguridad
 
 - La unica variable **sensible** es `AZURE_SPEECH_KEY`. Tratala como una contrasena.

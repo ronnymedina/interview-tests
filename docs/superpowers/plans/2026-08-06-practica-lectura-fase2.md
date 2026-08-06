@@ -1,5 +1,7 @@
 # Práctica de lectura — fase 2: Implementation Plan
 
+> **Estado: ejecutado.** Todas las tareas están implementadas y commiteadas en `develop`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Que el usuario abra `/reading`, reciba un texto real del catálogo al azar, lo lea en voz alta, y Azure evalúe su pronunciación contra ese texto exacto.
@@ -57,7 +59,7 @@ Corta el cuerpo de un artículo al primer límite de oración que no pase de `ma
 - Consumes: nada.
 - Produces: `make_excerpt(body: str, max_words: int) -> str`. Devuelve `""` si `body` no tiene palabras.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Crear `test_app_reading_excerpt.py`:
 
@@ -125,12 +127,12 @@ def test_es_determinista(body, max_words):
     assert make_excerpt(body, max_words) == make_excerpt(body, max_words)
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_reading_excerpt.py -v`
 Expected: FAIL con `ModuleNotFoundError: No module named 'app.reading.excerpt'`
 
-- [ ] **Step 3: Implementar `make_excerpt`**
+- [x] **Step 3: Implementar `make_excerpt`**
 
 Crear `app/reading/excerpt.py`:
 
@@ -179,12 +181,12 @@ def make_excerpt(body: str, max_words: int) -> str:
     return excerpt
 ```
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [x] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_reading_excerpt.py -v`
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Agregar `READING_MAX_WORDS` a la config**
+- [x] **Step 5: Agregar `READING_MAX_WORDS` a la config**
 
 En `config.py`, dentro del bloque `# --- Practica de lectura`, agregar junto a las otras `READING_*`:
 
@@ -194,12 +196,12 @@ En `config.py`, dentro del bloque `# --- Practica de lectura`, agregar junto a l
     READING_MAX_WORDS: int = Field(default=120, gt=0)
 ```
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS, sin regresiones.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/reading/excerpt.py test_app_reading_excerpt.py config.py
@@ -223,7 +225,7 @@ El repositorio hoy solo sabe insertar y contar. Necesita entregar una fila al az
   - `ReadingTextStore.get(reading_id: int) -> StoredReadingText | None`
   - `StoredReadingText`: dataclass congelada con `id: int` y `text: ReadingText`.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crear `test_app_reading_repository.py`:
 
@@ -312,12 +314,12 @@ asyncio_mode = "auto"
 
 y `pytest-asyncio>=1.0` al grupo `dev` de `[dependency-groups]`, luego `uv sync`.
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [x] **Step 2: Correr el test y verificar que falla**
 
 Run: `uv run pytest test_app_reading_repository.py -v`
 Expected: FAIL con `ImportError: cannot import name 'StoredReadingText'`
 
-- [ ] **Step 3: Implementar en `app/reading/repository.py`**
+- [x] **Step 3: Implementar en `app/reading/repository.py`**
 
 Agregar el import y la dataclass después de `UpsertResult`:
 
@@ -396,17 +398,17 @@ Agregar a `PostgresReadingTextStore`:
         )
 ```
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [x] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_reading_repository.py -v`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Correr la suite completa**
+- [x] **Step 5: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/reading/repository.py test_app_reading_repository.py pyproject.toml
@@ -428,7 +430,7 @@ Espejo de `conversation_starts`. Una fila por evaluación, sin contenido: ni el 
 - Consumes: nada.
 - Produces: la tabla `reading_starts (id, created_at, user_id, reading_id)`, consumida por Task 4.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crear `test_app_reading_starts_schema.py`, siguiendo el patrón de `test_app_reading_texts.py`:
 
@@ -476,12 +478,12 @@ def test_el_sql_del_contenedor_coincide_con_el_schema():
     assert "reading_starts_user_idx" in sql
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [x] **Step 2: Correr el test y verificar que falla**
 
 Run: `uv run pytest test_app_reading_starts_schema.py -v`
 Expected: FAIL con `AssertionError: reading_starts no está en _SCHEMA`
 
-- [ ] **Step 3: Agregar el DDL en los dos sitios**
+- [x] **Step 3: Agregar el DDL en los dos sitios**
 
 En `app/storage.py`, al final de la tupla `_SCHEMA` (después del índice de `reading_texts`):
 
@@ -516,12 +518,12 @@ CREATE TABLE IF NOT EXISTS reading_starts (
 CREATE INDEX IF NOT EXISTS reading_starts_user_idx ON reading_starts (user_id);
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [x] **Step 4: Correr el test y verificar que pasa**
 
 Run: `uv run pytest test_app_reading_starts_schema.py -v`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/storage.py docker/initdb/05-reading-starts.sql test_app_reading_starts_schema.py
@@ -549,7 +551,7 @@ La lectura no consume las conversaciones del usuario (son modalidades distintas)
   - `UsageStore.add_reading_start(user_id: str, reading_id: int) -> None`
   - `UsageStore.reading_count(user_id: str) -> int`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Añadir a `test_app_limits_service.py` (mirar primero cómo está definido el doble de `UsageStore` en ese archivo y extenderlo con `add_reading_start` / `reading_count`, siguiendo su estilo):
 
@@ -593,12 +595,12 @@ def test_record_reading_start_registra_la_fila():
     assert store.reading_rows == [("u1", 42)]
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_limits_service.py -v`
 Expected: FAIL con `AttributeError: 'LimitsService' object has no attribute 'check_can_read'`
 
-- [ ] **Step 3: Agregar `USER_READING_QUOTA` a `config.py`**
+- [x] **Step 3: Agregar `USER_READING_QUOTA` a `config.py`**
 
 Junto a `USER_CONVERSATION_QUOTA`:
 
@@ -609,7 +611,7 @@ Junto a `USER_CONVERSATION_QUOTA`:
     USER_READING_QUOTA: int = Field(default=10, gt=0)
 ```
 
-- [ ] **Step 4: Extender `UsageStore` y su adaptador Postgres**
+- [x] **Step 4: Extender `UsageStore` y su adaptador Postgres**
 
 En `app/limits/repository.py`, agregar al `Protocol UsageStore`:
 
@@ -643,7 +645,7 @@ Y a `PostgresUsageStore`:
         return int(row["n"])
 ```
 
-- [ ] **Step 5: Agregar los métodos a `LimitsService`**
+- [x] **Step 5: Agregar los métodos a `LimitsService`**
 
 En `app/limits/service.py`, después de `check_can_start`:
 
@@ -669,17 +671,17 @@ En `app/limits/service.py`, después de `check_can_start`:
         self._store.add_reading_start(user_id, reading_id)
 ```
 
-- [ ] **Step 6: Correr los tests y verificar que pasan**
+- [x] **Step 6: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_limits_service.py -v`
 Expected: PASS.
 
-- [ ] **Step 7: Correr la suite completa**
+- [x] **Step 7: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS. Si `test_app_limits_repository.py` tiene un doble de `UsageStore` que ahora no cumple el `Protocol`, extenderlo con los dos métodos nuevos.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/limits/ config.py test_app_limits_service.py test_app_limits_repository.py
@@ -703,7 +705,7 @@ El modo *scripted* es lo que habilita `completeness` y el miscue. Azure no marca
 - Consumes: `AzureSpeechClient` y `AzureSpeechError` de `app/speech/azure_client.py`; `SpeechError` de `app/speech/assessment.py`.
 - Produces: `assess_scripted(wav_path: str, reference_text: str, client: AzureSpeechClient | None = None) -> dict` devolviendo `{"recognized_text": str, "scores": {"pronunciation", "accuracy", "fluency", "completeness", "prosody"}, "words": [ {"word", "accuracy", "error_type", "phonemes"} ], "audio_seconds": float}`.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Crear `test_app_speech_scripted.py`:
 
@@ -805,12 +807,12 @@ def test_sin_voz_detectada_es_422():
     assert exc.value.status == 422
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_speech_scripted.py -v`
 Expected: FAIL con `AttributeError: module 'app.speech.assessment' has no attribute 'assess_scripted'`
 
-- [ ] **Step 3: Agregar `make_omission_word` a `AzureSpeechClient`**
+- [x] **Step 3: Agregar `make_omission_word` a `AzureSpeechClient`**
 
 En `app/speech/azure_client.py`, como `@staticmethod`, justo antes de `word_to_dict`:
 
@@ -828,7 +830,7 @@ En `app/speech/azure_client.py`, como `@staticmethod`, justo antes de `word_to_d
         )
 ```
 
-- [ ] **Step 4: Implementar `assess_scripted`**
+- [x] **Step 4: Implementar `assess_scripted`**
 
 En `app/speech/assessment.py`, agregar los imports `difflib` y `string` arriba, y estas dos funciones al final:
 
@@ -939,7 +941,7 @@ def _aggregate_scripted(state: dict, reference_words: list[str]) -> dict:
     }
 ```
 
-- [ ] **Step 5: Exportar desde `app/speech/__init__.py`**
+- [x] **Step 5: Exportar desde `app/speech/__init__.py`**
 
 ```python
 from app.speech.assessment import SpeechError, assess_scripted
@@ -948,17 +950,17 @@ from app.speech.service import SpeechService, build_speech_service
 __all__ = ["SpeechService", "SpeechError", "assess_scripted", "build_speech_service"]
 ```
 
-- [ ] **Step 6: Correr los tests y verificar que pasan**
+- [x] **Step 6: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_speech_scripted.py -v`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 7: Correr la suite completa**
+- [x] **Step 7: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/speech/ test_app_speech_scripted.py
@@ -985,7 +987,7 @@ Compone repositorio + extracto + Azure. Es donde vive la decisión central del d
   - `async ReadingService.assess(reading_id: int, audio_bytes: bytes) -> dict` → lo que devuelve `assess_scripted` más `"reference_text"`
   - `build_reading_service(storage: AsyncPostgresStorage) -> ReadingService`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Crear `test_app_reading_service.py`:
 
@@ -1105,12 +1107,12 @@ async def test_assess_devuelve_el_texto_de_referencia_para_pintar_el_diff():
     assert result["scores"]["pronunciation"] == 90.0
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_reading_service.py -v`
 Expected: FAIL con `ModuleNotFoundError: No module named 'app.reading.service'`
 
-- [ ] **Step 3: Implementar el servicio**
+- [x] **Step 3: Implementar el servicio**
 
 Crear `app/reading/service.py`:
 
@@ -1208,7 +1210,7 @@ def build_reading_service(storage: AsyncPostgresStorage) -> ReadingService:
     return ReadingService(PostgresReadingTextStore(storage))
 ```
 
-- [ ] **Step 4: Exportar desde `app/reading/__init__.py`**
+- [x] **Step 4: Exportar desde `app/reading/__init__.py`**
 
 Reemplazar las últimas dos líneas por:
 
@@ -1227,17 +1229,17 @@ El flujo tiene dos mitades: `sources/` (obtiene) → `ingest` (orquesta) → `re
 sirve un texto al azar y evalúa la lectura contra él.
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [x] **Step 5: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_reading_service.py -v`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/reading/service.py app/reading/__init__.py test_app_reading_service.py
@@ -1258,7 +1260,7 @@ Primer endpoint asíncrono del servidor. Consulta los límites para avisar tempr
 - Consumes: `build_reading_service`, `ReadingService`, `ReadingError` (Task 6); `LimitsService.check_can_read` (Task 4); `AsyncPostgresStorage` de `app/storage.py`.
 - Produces: dependencias `get_reading_service()` y el módulo-level `_reading_service`, que Task 8 reutiliza.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Crear `test_app_server_reading.py`:
 
@@ -1384,12 +1386,12 @@ def test_la_pagina_de_lectura_se_renderiza(client):
     assert "text/html" in res.headers["content-type"]
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_server_reading.py -v`
 Expected: FAIL con `ImportError: cannot import name 'get_reading_service'`
 
-- [ ] **Step 3: Construir el servicio en el composition root**
+- [x] **Step 3: Construir el servicio en el composition root**
 
 En `app/cmd/server.py`, agregar a los imports:
 
@@ -1415,7 +1417,7 @@ def get_reading_service() -> ReadingService:
     return _reading_service
 ```
 
-- [ ] **Step 4: Agregar el endpoint**
+- [x] **Step 4: Agregar el endpoint**
 
 En `app/cmd/server.py`, después del bloque de conversación, con su propia sección:
 
@@ -1450,7 +1452,7 @@ async def reading_random(
         raise HTTPException(status_code=error.status, detail=str(error))
 ```
 
-- [ ] **Step 5: Agregar la ruta de la página**
+- [x] **Step 5: Agregar la ruta de la página**
 
 Junto al `index` que ya existe al final del archivo:
 
@@ -1469,17 +1471,17 @@ Para que el test de esta ruta pase hace falta que `app/web/templates/reading.htm
 {% block content %}<div id="reading-root"></div>{% endblock %}
 ```
 
-- [ ] **Step 6: Correr los tests y verificar que pasan**
+- [x] **Step 6: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_server_reading.py -v`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 7: Correr la suite completa**
+- [x] **Step 7: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/cmd/server.py app/web/templates/reading.html test_app_server_reading.py
@@ -1501,7 +1503,7 @@ Acá sí se espera el resultado de Azure (es la respuesta, no un agregado en bac
 - Consumes: `get_reading_service`, `FakeReadingService`, `FakeLimits` (Task 7); `ReadingService.assess` (Task 6); `LimitsService.record_reading_start` y `record_azure_usage` (Task 4).
 - Produces: nada que otras tareas consuman.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Añadir a `test_app_server_reading.py`:
 
@@ -1605,12 +1607,12 @@ def test_assess_ignora_un_reference_text_enviado_por_el_cliente(client):
     assert service.assessed == (7, b"fake wav bytes")
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_server_reading.py -v`
 Expected: FAIL — los nuevos dan 405/404 porque la ruta no existe.
 
-- [ ] **Step 3: Implementar el endpoint**
+- [x] **Step 3: Implementar el endpoint**
 
 En `app/cmd/server.py`, después de `reading_random`:
 
@@ -1652,7 +1654,7 @@ async def reading_assess(
     return result
 ```
 
-- [ ] **Step 4: Agregar el rate limit**
+- [x] **Step 4: Agregar el rate limit**
 
 En `config.py`, junto a los otros:
 
@@ -1674,17 +1676,17 @@ Y en `_RATE_SCOPES`:
     ("POST", "/reading/assess"): "reading",
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [x] **Step 5: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_server_reading.py -v`
 Expected: PASS, 12 tests.
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/cmd/server.py config.py test_app_server_reading.py
@@ -1709,7 +1711,7 @@ El frontend del boceto: dos paneles, izquierda el texto a leer, derecha lo que v
 - Consume de la API: `GET /reading/random` y `POST /reading/assess` (Tasks 7 y 8).
 - Produces: nada que otras tareas consuman.
 
-- [ ] **Step 1: Agregar la navegación en `base.html`**
+- [x] **Step 1: Agregar la navegación en `base.html`**
 
 Dentro de `<main>`, antes del `<div id="banner">`:
 
@@ -1723,7 +1725,7 @@ Dentro de `<main>`, antes del `<div id="banner">`:
 
 Y en el bloque de scripts, para que cada página pueda sumar el suyo, verificar que `{% block scripts %}{% endblock %}` ya existe (sí existe, después de `shared.js`).
 
-- [ ] **Step 2: Escribir la plantilla**
+- [x] **Step 2: Escribir la plantilla**
 
 Reemplazar el contenido de `app/web/templates/reading.html`:
 
@@ -1773,7 +1775,7 @@ Reemplazar el contenido de `app/web/templates/reading.html`:
 {% endblock %}
 ```
 
-- [ ] **Step 3: Escribir `reading.js`**
+- [x] **Step 3: Escribir `reading.js`**
 
 Crear `app/web/static/reading.js`:
 
@@ -1943,7 +1945,7 @@ $("btn-another").addEventListener("click", loadText);
 loadText();
 ```
 
-- [ ] **Step 4: Agregar los estilos**
+- [x] **Step 4: Agregar los estilos**
 
 Al final de `app/web/static/app.css`:
 
@@ -1987,7 +1989,7 @@ Al final de `app/web/static/app.css`:
 
 Revisar los nombres de variables CSS que ya usa `app.css` (por ejemplo si define `--border` o colores con otro nombre) y ajustar para no introducir una paleta nueva.
 
-- [ ] **Step 5: Verificar contra el servidor real**
+- [x] **Step 5: Verificar contra el servidor real**
 
 ```bash
 docker compose up -d
@@ -2003,12 +2005,12 @@ Abrir `http://localhost:8000/reading` y comprobar, uno por uno:
 - Si se omite una palabra a propósito, queda tachada en el panel izquierdo.
 - En una ventana angosta los paneles se apilan.
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/web/
@@ -2024,19 +2026,19 @@ git commit -m "feat(web): pantalla de lectura con paneles de texto y transcripci
 - Modify: `README.md`
 - Modify: `docs/superpowers/specs/2026-08-06-practica-lectura-design.md`
 
-- [ ] **Step 1: Documentar las variables nuevas**
+- [x] **Step 1: Documentar las variables nuevas**
 
 En `VARIABLES-DE-ENTORNO.md`, siguiendo el formato de las entradas existentes, agregar `READING_MAX_WORDS` (120, tamaño del extracto que se lee en voz alta), `USER_READING_QUOTA` (10, evaluaciones de lectura por usuario, independiente de la cuota de conversación) y `RATE_LIMIT_READING_PER_MIN` (20, peticiones por IP a `/reading/assess`).
 
-- [ ] **Step 2: Documentar la modalidad en el README**
+- [x] **Step 2: Documentar la modalidad en el README**
 
 Agregar una sección corta explicando que además de la conversación hay práctica de lectura en `/reading`, que el catálogo se puebla con `python -m app.reading.ingest`, y que si está vacío la página responde 503 con esa instrucción.
 
-- [ ] **Step 3: Marcar la fase 2 como ejecutada**
+- [x] **Step 3: Marcar la fase 2 como ejecutada**
 
 En `docs/superpowers/specs/2026-08-06-practica-lectura-design.md`, en la sección "Alcance por fases", marcar la fase 2 como entregada y apuntar al spec de esta fase para las decisiones que cambiaron (sin caché de extracto, texto al azar sin catálogo navegable).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add VARIABLES-DE-ENTORNO.md README.md docs/
