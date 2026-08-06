@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_USER: review
       POSTGRES_PASSWORD: review
-      POSTGRES_DB: review_ingles
+      POSTGRES_DB: interview_ingles
     ports:
       # 5434 en el host: el 5432 y el 5433 suelen estar tomados por otros
       # Postgres locales. Cambialo si te choca.
@@ -20,7 +20,7 @@ services:
       # El .sql crea la tabla al inicializar el volumen por primera vez.
       - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U review -d review_ingles"]
+      test: ["CMD-SHELL", "pg_isready -U review -d interview_ingles"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -33,7 +33,7 @@ services:
       - .env
     environment:
       # Dentro de la red de compose, el host de la BD es el servicio `db`.
-      DATABASE_URL: postgresql://review:review@db:5432/review_ingles
+      DATABASE_URL: postgresql://review:review@db:5432/interview_ingles
     ports:
       - "8000:8000"
     volumes:
