@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     # Cuota de conversaciones de por vida por usuario (X-User-Id).
     USER_CONVERSATION_QUOTA: int = 3
 
+    # Cuota de lecturas evaluadas, tambien de por vida por usuario. Es un contador aparte a
+    # proposito: leer no debe gastar las conversaciones, son modalidades distintas y
+    # mezclarlas seria confuso. El presupuesto en dolares si es compartido.
+    USER_READING_QUOTA: int = 10
+
     # Limites del turno/conversacion.
     MAX_ANSWER_SECONDS: int = 30
     MAX_QUESTIONS: int = 5

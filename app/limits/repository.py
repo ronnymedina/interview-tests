@@ -46,6 +46,14 @@ class UsageStore(Protocol):
         """Número de conversaciones iniciadas por ese usuario."""
         ...
 
+    def add_reading_start(self, user_id: str, reading_id: int) -> None:
+        """Registra una evaluación de lectura (para la cuota de lectura)."""
+        ...
+
+    def reading_count(self, user_id: str) -> int:
+        """Número de lecturas que ese usuario ya evaluó."""
+        ...
+
 
 class PostgresUsageStore:
     """Adaptador Postgres de UsageStore. Aísla el SQL; recibe el almacenamiento inyectado.
@@ -106,6 +114,22 @@ class PostgresUsageStore:
         with self._storage.connect() as conn:
             row = conn.execute(
                 "SELECT COUNT(*) AS n FROM conversation_starts WHERE user_id = %s",
+                (user_id,),
+            ).fetchone()
+        assert row is not None
+        return int(row["n"])
+
+    def add_reading_start(self, user_id: str, reading_id: int) -> None:
+        with self._storage.connect() as conn:
+            conn.execute(
+                "INSERT INTO reading_starts (user_id, reading_id) VALUES (%s, %s)",
+                (user_id, reading_id),
+            )
+
+    def reading_count(self, user_id: str) -> int:
+        with self._storage.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM reading_starts WHERE user_id = %s",
                 (user_id,),
             ).fetchone()
         assert row is not None
