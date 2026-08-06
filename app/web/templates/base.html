@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Practica tu inglés{% endblock %}</title>
+    <link rel="stylesheet" href="/static/app.css" />
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <main>
+      {# Banner de pausa/cuota: común a todas las modalidades, lo llena showBanner(). #}
+      <div id="banner" class="card hidden" role="status" style="text-align:center; border-color:#e2c9a0">
+        <h2 id="banner-title"></h2>
+        <p id="banner-text" class="lead" style="margin:8px 0 0"></p>
+      </div>
+
+      <div id="app">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

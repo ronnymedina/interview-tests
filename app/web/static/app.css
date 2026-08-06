@@ -1,0 +1,140 @@
+:root {
+  /* Paleta estilo Apple: gris claro de fondo, tarjetas blancas, acento azul. */
+  --cream: #f5f5f7; --ivory: #ffffff; --ink: #1d1d1f;
+  --gold: #0071e3; --gold-deep: #0060c0; --gold-soft: #e3e3e6; --muted: #6e6e73; --sage: #30a46c;
+  /* Colores semánticos del score de pronunciación (independientes del acento azul). */
+  --ok: #248a3d; --warn: #b26a00; --bad: #d93a2f;
+  /* SF Pro (system-ui en Apple); mantenemos el nombre --serif para no tocar cada uso. */
+  --serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, "Segoe UI", Roboto, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+  --radius: 18px; --shadow: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--cream); color: var(--ink);
+  font-family: var(--sans); line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 620px; margin: 0 auto; padding: 40px 20px 80px; }
+h1, h2, .question { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; }
+h1 { font-size: 1.9rem; margin: 0 0 6px; }
+h2 { font-size: 1.35rem; margin: 0 0 6px; }
+.lead { color: var(--muted); margin: 0 0 28px; font-size: 1.02rem; }
+.card {
+  background: var(--ivory); border: 1px solid var(--gold-soft);
+  border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow);
+}
+label { display: block; font-weight: 600; font-size: .9rem; margin: 18px 0 6px; }
+input, textarea, select {
+  width: 100%; padding: 11px 13px; border: 1px solid var(--gold-soft);
+  border-radius: 10px; font: inherit; background: #fff; color: var(--ink);
+}
+textarea { resize: vertical; min-height: 120px; }
+input:focus, textarea:focus, select:focus, button:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
+}
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 20px; }
+button {
+  font: inherit; font-weight: 600; padding: 12px 22px; border-radius: 12px;
+  border: 1px solid transparent; background: var(--gold-deep); color: #fff; cursor: pointer;
+  transition: filter .15s ease, transform .05s ease;
+}
+button:hover { filter: brightness(1.06); }
+button:active { transform: translateY(1px); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.ghost { background: transparent; border-color: var(--gold-soft); color: var(--ink); }
+button.small { padding: 7px 14px; font-size: .85rem; }
+.status { color: var(--muted); font-size: .92rem; }
+.error { color: #b4402f; font-size: .92rem; margin-top: 12px; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: .88rem; }
+.progress { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 26px; }
+.progress span { width: 10px; height: 10px; border-radius: 50%; background: var(--gold-soft); }
+.progress span.done { background: var(--gold); }
+.progress span.active { background: var(--gold); box-shadow: 0 0 0 4px rgba(0,113,227,.18); }
+.progress i { width: 26px; height: 1px; background: var(--gold-soft); }
+.stage { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 8px 0 4px; }
+.oval {
+  width: 150px; height: 150px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #d9a8ff, #9a6bff 55%, #ff7eb3);
+  box-shadow: 0 10px 34px rgba(154,107,255,.35);
+  animation: breathe 4.5s ease-in-out infinite;
+  transition: transform .12s ease, box-shadow .3s ease, filter .3s ease;
+}
+/* Hablando (tutor): pulso continuo y visible mientras dura la voz del navegador. */
+.oval.speaking { box-shadow: 0 0 0 8px rgba(154,107,255,.14), 0 12px 34px rgba(154,107,255,.45); animation: speakpulse 1.1s ease-in-out infinite; }
+.oval.thinking { box-shadow: 0 0 0 6px rgba(154,107,255,.10), 0 10px 30px rgba(154,107,255,.32); animation: breathe 2.2s ease-in-out infinite; }
+@keyframes speakpulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+.oval.beat { transform: scale(1.06); }
+/* Grabando: orbe verde LLENO. El tamaño y el halo los maneja Oval.level() en vivo
+   según el volumen real del micrófono (transición rápida para que se sienta reactivo).
+   Sin animación CSS aquí: una animación sobre transform pisaría el valor del JS. */
+.oval.recording {
+  background: radial-gradient(circle at 42% 34%, #86e3ac, #30a46c 62%, #1f8a56);
+  box-shadow: 0 0 0 6px rgba(48,164,108,.18), 0 10px 30px rgba(48,164,108,.42);
+  transition: transform .08s ease-out, box-shadow .08s ease-out;
+  animation: none;
+}
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+.counter { font-family: var(--serif); font-size: 1.1rem; color: var(--muted); min-height: 1.4em; }
+/* "Pregunta X de N" dentro del paso de práctica. */
+.q-progress { text-align: center; font-size: .82rem; font-weight: 600; color: var(--gold); letter-spacing: .03em; text-transform: uppercase; min-height: 1.1em; margin-bottom: 6px; }
+/* Indicador de carga mientras se analiza la respuesta / se prepara el feedback. */
+.loading { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; color: var(--muted); font-size: .95rem; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--gold-soft); border-top-color: var(--gold); animation: spin .8s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.scores { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 22px; }
+.score { flex: 1 1 90px; text-align: center; background: var(--ivory); border: 1px solid var(--gold-soft); border-radius: 12px; padding: 14px 8px; }
+.score b { font-family: var(--serif); font-size: 1.6rem; display: block; }
+/* Color del número por score, igual que las palabras: verde / ámbar / rojo. */
+.score.good b { color: var(--ok); }
+.score.fair b { color: var(--warn); }
+.score.poor b { color: var(--bad); }
+.score small { color: var(--muted); }
+/* Feedback en Markdown renderizado (headings, listas, negritas). */
+.prose h1, .prose h2, .prose h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; line-height: 1.3; margin: 18px 0 8px; }
+.prose h1 { font-size: 1.35rem; } .prose h2 { font-size: 1.15rem; } .prose h3 { font-size: 1.02rem; }
+.prose > :first-child { margin-top: 0; }
+.prose p { margin: 10px 0; }
+.prose ul, .prose ol { margin: 10px 0; padding-left: 22px; }
+.prose li { margin: 4px 0; }
+.prose strong { font-weight: 600; }
+.prose em { font-style: italic; }
+.prose code { background: #ececed; padding: 1px 6px; border-radius: 6px; font-size: .9em; }
+/* Palabra clicable: muestra un altavoz para indicar que se reproduce. */
+.pill { display: inline-flex; align-items: center; gap: 7px; margin: 5px 8px 0 0; padding: 8px 14px 8px 12px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); color: var(--ink); cursor: pointer; font-size: .92rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: border-color .15s ease, color .15s ease; }
+.pill:hover { border-color: var(--gold); color: var(--gold); }
+.pill .spk { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0,113,227,.10); color: var(--gold); font-size: .8rem; flex-shrink: 0; }
+/* Pronunciación palabra por palabra (datos objetivos de Azure). */
+.pron-words { display: flex; flex-wrap: wrap; gap: 14px 16px; margin-top: 8px; }
+.word-wrapper { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.word-head { display: inline-flex; align-items: center; gap: 4px; }
+.word-head .word { font: inherit; font-weight: 600; font-size: 1rem; padding: 2px 4px; background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer; }
+.word-head .word:hover { filter: none; opacity: .8; }
+.word.good { color: var(--ok); border-bottom-color: rgba(36,138,61,.4); }
+.word.fair { color: var(--warn); border-bottom-color: rgba(178,106,0,.45); }
+.word.poor { color: var(--bad); border-bottom-color: rgba(217,58,47,.5); }
+.word.unknown { color: var(--muted); }
+.word-head .speak { font: inherit; font-size: .82rem; padding: 2px; background: transparent; border: none; cursor: pointer; }
+.word-head .speak:hover { filter: none; transform: scale(1.15); }
+.ipa { display: flex; gap: 3px; font-size: .82rem; color: var(--muted); padding-left: 4px; }
+.ipa .sound.good { color: var(--ok); }
+.ipa .sound.fair { color: var(--warn); }
+.ipa .sound.poor { color: var(--bad); font-weight: 600; }
+.phonemes { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 0 4px; }
+.phonemes.hidden { display: none; }
+.phoneme { font-size: .76rem; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--gold-soft); background: var(--ivory); }
+.phoneme.good { color: var(--ok); border-color: rgba(36,138,61,.35); }
+.phoneme.fair { color: var(--warn); border-color: rgba(178,106,0,.4); }
+.phoneme.poor { color: var(--bad); border-color: rgba(217,58,47,.45); }
+.pron-legend { display: flex; gap: 16px; margin-top: 16px; font-size: .8rem; color: var(--muted); }
+.pron-legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.dot.good { background: var(--ok); } .dot.fair { background: var(--warn); } .dot.poor { background: var(--bad); }
+.phrase { margin: 10px 0; padding-left: 14px; border-left: 3px solid var(--gold); }
+.phrase del { color: #b4402f; text-decoration: line-through; } .phrase ins { color: var(--sage); text-decoration: none; }
+button.on { background: var(--gold-deep); color: #fff; border-color: var(--gold-deep); }
+/* Aviso informativo (recomendación de navegador). */
+.notice { display: flex; gap: 9px; align-items: flex-start; background: rgba(0,113,227,.07); border: 1px solid rgba(0,113,227,.18); color: var(--ink); border-radius: 12px; padding: 11px 14px; font-size: .9rem; line-height: 1.45; margin: 0 0 22px; }
+.notice .ico { flex-shrink: 0; }
