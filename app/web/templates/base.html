@@ -7,8 +7,14 @@
     <link rel="stylesheet" href="/static/app.css" />
     {% block head %}{% endblock %}
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <main>
+      {# Navegación entre modalidades. Vive acá para que cada página nueva la herede. #}
+      <nav class="modes">
+        <a href="/" class="{% block nav_conversation %}{% endblock %}">Conversación</a>
+        <a href="/reading" class="{% block nav_reading %}{% endblock %}">Lectura</a>
+      </nav>
+
       {# Banner de pausa/cuota: común a todas las modalidades, lo llena showBanner(). #}
       <div id="banner" class="card hidden" role="status" style="text-align:center; border-color:#e2c9a0">
         <h2 id="banner-title"></h2>
