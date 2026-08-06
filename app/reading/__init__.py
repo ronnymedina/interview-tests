@@ -1,13 +1,15 @@
 """Práctica de lectura: catálogo de textos reales para leer en voz alta.
 
-Esta fase cubre solo la ingesta: bajar artículos de una fuente externa y guardarlos en
-`reading_texts`. Los endpoints, el recorte a extracto y la evaluación contra el texto de
-referencia llegan después, cuando haya catálogo con qué probarlos.
+El flujo tiene dos mitades. La ingesta: `sources/` (obtiene) → `ingest` (orquesta) →
+`repository` (persiste), que `scheduler` repite cada N horas dentro del servidor. Y el
+servicio: `service` → `excerpt` + `app/speech`, que entrega un texto al azar ya recortado y
+evalúa la lectura contra ese mismo texto.
 
-El flujo es `sources/` (obtiene) → `ingest` (orquesta) → `repository` (persiste), y
-`scheduler` lo repite cada N horas dentro del servidor.
+El extracto nunca se persiste ni se cachea: se recalcula desde el cuerpo guardado cada vez
+que hace falta, porque `make_excerpt` es determinista.
 """
 
 from app.reading.model import ReadingText
+from app.reading.service import ReadingError, ReadingService, build_reading_service
 
-__all__ = ["ReadingText"]
+__all__ = ["ReadingText", "ReadingError", "ReadingService", "build_reading_service"]
