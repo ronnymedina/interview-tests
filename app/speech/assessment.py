@@ -6,7 +6,7 @@ conexión vive en azure_client.py. Migrado del legacy speech.py (solo el modo un
 con un campo extra `audio_seconds` para el cálculo de costo de Azure.
 """
 
-import config
+from config import settings
 from app.speech.azure_client import AzureSpeechClient, AzureSpeechError
 
 # 1 segundo = 10_000_000 unidades de 100 ns (ticks) de Azure.
@@ -28,7 +28,7 @@ def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) ->
     referencia). El texto reconocido sirve además como la transcripción de lo que dijo el
     usuario. `client` permite inyectar un doble en los tests.
     """
-    if not config.AZURE_SPEECH_KEY:
+    if not settings.AZURE_SPEECH_KEY:
         raise SpeechError(
             "Falta AZURE_SPEECH_KEY en el archivo .env. Copia .env.example a .env "
             "y pon tu clave de Azure.",
@@ -37,7 +37,7 @@ def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) ->
 
     if client is None:
         client = AzureSpeechClient(
-            config.AZURE_SPEECH_KEY, config.AZURE_SPEECH_REGION, config.SPEECH_LANGUAGE
+            settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION, settings.SPEECH_LANGUAGE
         )
 
     try:

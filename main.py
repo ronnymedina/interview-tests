@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-import config
+from config import settings
 import conversation
 import db
 import scoring
@@ -282,4 +282,4 @@ def word_history(word: str) -> list[dict]:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=config.PORT)
+    uvicorn.run(app, host="127.0.0.1", port=settings.PORT)

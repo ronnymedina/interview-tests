@@ -10,7 +10,7 @@ import os
 import tempfile
 from collections.abc import Callable
 
-import config
+from config import settings
 from app.speech.assessment import SpeechError, assess_unscripted
 from app.speech.azure_client import AzureSpeechClient
 from app.speech.scoring import TurnScoring
@@ -61,9 +61,9 @@ def build_speech_service() -> SpeechService | None:
     Así la conversación funciona igual sin Azure (transcripción del navegador + feedback de
     Gemini); solo se omite el scoring de pronunciación.
     """
-    if not config.AZURE_SPEECH_KEY:
+    if not settings.AZURE_SPEECH_KEY:
         return None
     client = AzureSpeechClient(
-        config.AZURE_SPEECH_KEY, config.AZURE_SPEECH_REGION, config.SPEECH_LANGUAGE
+        settings.AZURE_SPEECH_KEY, settings.AZURE_SPEECH_REGION, settings.SPEECH_LANGUAGE
     )
     return SpeechService(assess_fn=_assess_with_client(client))
