@@ -105,12 +105,14 @@ _rate_limiter = IpRateLimiter(
         "global": settings.RATE_LIMIT_GLOBAL_PER_MIN,
         "start": settings.RATE_LIMIT_START_PER_MIN,
         "answer": settings.RATE_LIMIT_ANSWER_PER_MIN,
+        "reading": settings.RATE_LIMIT_READING_PER_MIN,
     }
 )
 # (método, ruta) -> scope extra (además del 'global' que aplica a todo el tráfico).
 _RATE_SCOPES = {
     ("POST", "/conversation/start"): "start",
     ("POST", "/conversation/answer"): "answer",
+    ("POST", "/reading/assess"): "reading",
 }
 
 
@@ -363,6 +365,47 @@ async def reading_random(
         return await reading.random_excerpt()
     except ReadingError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
+
+
+@app.post("/reading/assess")
+async def reading_assess(
+    reading_id: int = Form(...),
+    audio: UploadFile = File(...),
+    user_id: str = Depends(get_user_id),
+    reading: ReadingService = Depends(get_reading_service),
+    limits: LimitsService = Depends(get_limits_service),
+) -> dict:
+    """Evalúa la lectura contra el extracto de `reading_id`, releído de la base.
+
+    El cliente manda el id, nunca el texto de referencia: si lo mandara, podría evaluar un
+    audio de "hello" contra un `reference_text` de "hello" y sacar 100 siempre.
+
+    Los límites se comprueban ANTES de llamar a Azure, y la cuota se registra DESPUÉS de que
+    responda: un fallo de Azure no debe gastarle una lectura al usuario.
+    """
+    try:
+        decision = await asyncio.to_thread(limits.check_can_read, user_id)
+    except Exception:
+        logger.exception("check_can_read falló (¿Postgres?); se corta conservador como 'paused'.")
+        raise HTTPException(status_code=429, detail={"reason": "paused"})
+
+    if not decision.allowed:
+        raise HTTPException(status_code=429, detail={"reason": decision.reason})
+
+    try:
+        result = await reading.assess(reading_id, await audio.read())
+    except ReadingError as error:
+        raise HTTPException(status_code=error.status, detail=str(error))
+
+    await asyncio.to_thread(limits.record_reading_start, user_id, reading_id)
+    await asyncio.to_thread(
+        limits.record_azure_usage,
+        user_id,
+        str(reading_id),
+        result["audio_seconds"],
+        "reading_assessment",
+    )
+    return result
 
 
 @app.post("/feedback", status_code=201)

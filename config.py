@@ -125,6 +125,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_GLOBAL_PER_MIN: int = 60
     RATE_LIMIT_START_PER_MIN: int = 10
     RATE_LIMIT_ANSWER_PER_MIN: int = 20
+    # Mismo tope que el de responder: cubre una operacion equivalente (subir audio y esperar
+    # a que Azure lo evalue).
+    RATE_LIMIT_READING_PER_MIN: int = 20
 
     # --- Practica de lectura: ingesta del catalogo (app/reading) --------------------------
     # El catalogo se puebla con un job periodico, no scrapeando en vivo: asi una caida de la
