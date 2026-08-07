@@ -107,3 +107,59 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "config"]
+
+# --- mypy ------------------------------------------------------------------------------
+# Tipado estatico con "gradual typing": la base global es permisiva para que el chequeo
+# pase hoy y pueda bloquear el CI desde el dia uno, y `strict` se activa por modulo en los
+# que ya lo cumplen. Un modulo que entra a la lista de estrictos no puede volver a salir
+# sin que alguien lo note en el diff — que es el punto.
+#
+#   uv run mypy app config.py
+[tool.mypy]
+python_version = "3.11"
+# Estos tres son los que atrapan bugs de verdad y ya se cumplen en todo el proyecto.
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# El SDK de Azure no publica stubs ni py.typed: sin esto, cada import es un error y el
+# ruido tapa los hallazgos reales. Es la unica dependencia sin tipos del proyecto.
+[[tool.mypy.overrides]]
+module = ["azure.*"]
+ignore_missing_imports = true
+
+# --- modulos ya estrictos --------------------------------------------------------------
+# Objetivo: que esta lista crezca hasta cubrir todo `app`. Lo que falta hoy es
+# cmd/server.py, speech/* (azure_client, scoring, assessment, service), conversation/graph
+# y service, reading/service y repository, storage y ratelimit.
+#
+# OJO: aca NO se puede poner `strict = true`. En una seccion per-module, mypy lo aplica al
+# proyecto entero en vez de a estos modulos (probado: pasa de 7 errores a 56). Hay que
+# expandir a mano los flags que `strict` agrupa, que es lo que sigue.
+[[tool.mypy.overrides]]
+module = [
+    "app.limits.*",
+    "app.feedback.*",
+    "app.conversation.messages",
+    "app.conversation.model",
+    "app.conversation.repository",
+    "app.conversation.schemas",
+    "app.reading.model",
+    "app.reading.excerpt",
+    "app.reading.ingest",
+    "app.reading.scheduler",
+    "app.reading.sources.*",
+    "app.logconfig",
+    "config",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+check_untyped_defs = true
+no_implicit_reexport = true
+strict_equality = true
+extra_checks = true

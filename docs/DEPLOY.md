@@ -35,19 +35,20 @@ docker build --target production -t review-ingles:prod .  # imagen final
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) corre en push y PR contra `main` y
 `develop`, en tres jobs:
 
-1. **Lint (ruff)** y **Tests unitarios y coverage**, en paralelo. Los dos bloquean.
-2. **Imagen de produccion** — solo si los dos anteriores pasaron. Nunca se publica una
+1. **Lint (ruff)**, **Tipos (mypy)** y **Tests unitarios y coverage**, en paralelo. Los tres
+   bloquean.
+2. **Imagen de produccion** — solo si los tres anteriores pasaron. Nunca se publica una
    imagen verde sobre una suite roja.
 
-Lint y tests van en paralelo a proposito: un error de estilo no debe tapar un test roto, ni
-al reves.
+Van en paralelo a proposito: un error de estilo no debe tapar un test roto, ni al reves.
 
 El job de tests no instala nada por su cuenta: construye el stage `test` del Dockerfile. Por
 eso un fallo remoto se reproduce local con un solo comando (`docker build --target test .`)
 en vez de tener que adivinar en que se diferencia el runner de tu maquina.
 
-El lint es la excepcion: corre `ruff` directo, sin Docker, porque tarda segundos y no
-necesita el entorno completo. Local es `uv run ruff check .`.
+Lint y tipos son la excepcion: corren `ruff` y `mypy` directo, sin Docker, porque tardan
+segundos y no necesitan el entorno completo. Local es `uv run ruff check .` y
+`uv run mypy app config.py`.
 
 Si la cobertura baja del **68 %** (`fail_under` en `pyproject.toml`), `coverage report` sale
 con codigo != 0 y el build falla.
