@@ -29,15 +29,15 @@ resto sale de la página del artículo.
 """
 
 import asyncio
-import structlog
 import re
 from itertools import zip_longest
 
 import httpx
+import structlog
 from bs4 import BeautifulSoup, Tag
 
-from config import settings
 from app.reading.model import ReadingText
+from config import settings
 
 logger = structlog.get_logger(__name__)
 

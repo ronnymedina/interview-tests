@@ -9,7 +9,11 @@ import enum
 from dataclasses import dataclass
 
 
-class DecisionKind(str, enum.Enum):
+# ruff sugiere enum.StrEnum (UP042), pero no es un cambio cosmético: con `str, Enum`,
+# `str(DecisionKind.ALLOW)` da "DecisionKind.ALLOW" y con StrEnum da "allow". Migrar
+# requiere revisar cada punto donde el kind se serializa o se loguea; no entra en un
+# cambio de linting.
+class DecisionKind(str, enum.Enum):  # noqa: UP042
     ALLOW = "allow"
     QUOTA = "quota"
     PAUSED_DAILY = "paused_daily"

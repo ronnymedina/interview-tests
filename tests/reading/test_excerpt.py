@@ -1,6 +1,7 @@
 """Propiedades y casos concretos de make_excerpt (función pura, sin BD ni red)."""
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from app.reading.excerpt import make_excerpt
 

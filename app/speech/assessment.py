@@ -14,8 +14,8 @@ justamente la señal que importa cuando el usuario lee algo escrito.
 import difflib
 import string
 
-from config import settings
 from app.speech.azure_client import AzureSpeechClient, AzureSpeechError
+from config import settings
 
 # 1 segundo = 10_000_000 unidades de 100 ns (ticks) de Azure.
 _TICKS_PER_SECOND = 10_000_000
@@ -51,7 +51,7 @@ def assess_unscripted(wav_path: str, client: AzureSpeechClient | None = None) ->
     try:
         state = client.recognize(wav_path, "")
     except AzureSpeechError as error:
-        raise SpeechError(f"Azure canceló la petición: {error}", status=502)
+        raise SpeechError(f"Azure canceló la petición: {error}", status=502) from error
 
     if not state["words"]:
         raise SpeechError(
@@ -133,7 +133,7 @@ def assess_scripted(
     try:
         state = client.recognize(wav_path, " ".join(reference_words))
     except AzureSpeechError as error:
-        raise SpeechError(f"Azure canceló la petición: {error}", status=502)
+        raise SpeechError(f"Azure canceló la petición: {error}", status=502) from error
 
     if not state["words"]:
         raise SpeechError(

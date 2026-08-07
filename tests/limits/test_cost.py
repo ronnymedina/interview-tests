@@ -2,8 +2,8 @@
 
 import pytest
 
-from config import settings
 from app.limits.cost import azure_cost_usd, gemini_cost_usd
+from config import settings
 
 
 def test_gemini_cost_sums_input_and_output_by_rate(monkeypatch):

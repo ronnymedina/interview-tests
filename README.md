@@ -103,9 +103,22 @@ uv run coverage run -m pytest && uv run coverage report    # con cobertura
 docker build --target test .                               # igual que en CI
 ```
 
-El piso de cobertura (`fail_under`) esta en `pyproject.toml`. Los tests que necesiten
-infraestructura real (Postgres, Azure, red) van marcados con `@pytest.mark.integration` y
-quedan fuera del stage `test`, que no levanta servicios.
+El piso de cobertura es **60 %** (`fail_under` en `pyproject.toml`): si baja de ahi, el
+build falla. Los tests que necesiten infraestructura real (Postgres, Azure, red) van
+marcados con `@pytest.mark.integration` y quedan fuera del stage `test`, que no levanta
+servicios.
+
+## Lint
+
+[ruff](https://github.com/astral-sh/ruff) como linter, configurado en `pyproject.toml`:
+
+```bash
+uv run ruff check .          # lo mismo que corre el CI
+uv run ruff check . --fix    # arregla lo que se pueda solo
+```
+
+No se corre `ruff format`: reformatear todo el proyecto es un cambio aparte, no un efecto
+colateral del linter.
 
 ## Estructura
 

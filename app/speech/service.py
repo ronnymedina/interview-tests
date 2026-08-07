@@ -10,12 +10,12 @@ import os
 import tempfile
 from collections.abc import Callable
 
-from config import settings
 from app.speech.assessment import SpeechError, assess_unscripted
 from app.speech.azure_client import AzureSpeechClient
 from app.speech.scoring import TurnScoring
+from config import settings
 
-__all__ = ["SpeechService", "SpeechError", "build_speech_service"]
+__all__ = ["SpeechError", "SpeechService", "build_speech_service"]
 
 
 class SpeechService:

@@ -63,7 +63,7 @@ def test_start_requires_user_id(client_with):
 
 
 def test_start_allows_and_records(client_with):
-    client, conversation, limits = client_with()
+    client, _, limits = client_with()
     resp = client.post(
         "/conversation/start",
         json={"user_context": "practicar para entrevista"},

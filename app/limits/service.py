@@ -6,10 +6,10 @@ evento. Depende de la interfaz `UsageStore`, no del Postgres concreto, así su l
 con un doble en memoria. La construcción real (`build_limits_service`) vive en __init__.py.
 """
 
-from config import settings
 from app.limits.cost import azure_cost_usd, gemini_cost_usd
 from app.limits.model import Decision, DecisionKind
 from app.limits.repository import UsageStore
+from config import settings
 
 
 class LimitsService:

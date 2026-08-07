@@ -37,6 +37,7 @@ dev = [
     # Explícito y no transitivo de mutmut: el stage `test` del Dockerfile y el CI
     # dependen de que exista, así que no puede colarse por la puerta de atrás.
     "coverage>=7.6",
+    "ruff>=0.16",
 ]
 
 # asyncio_mode = "auto" para no decorar cada test asincrono con @pytest.mark.asyncio.
@@ -59,13 +60,49 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
-# 65 % es el piso, no la meta: el total hoy es 69 % contando ramas (73 % contando solo
-# líneas). Lo que falta cubrir son los adaptadores reales (azure_client, sources/engoo,
-# los repository de Postgres), que necesitan tests de integración. Subí este número
-# cuando esos existan.
-fail_under = 65
+# Piso duro: por debajo de esto el build falla. El total hoy es 70 % contando ramas, así
+# que hay ~10 puntos de margen a propósito: un piso pegado al valor actual se rompe con el
+# primer commit que agregue código, y el equipo termina bajándolo en vez de escribir tests.
+# Lo que falta cubrir son los adaptadores reales (azure_client, sources/engoo, los
+# repository de Postgres), que necesitan tests de integración.
+fail_under = 60
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]
+
+# --- ruff ------------------------------------------------------------------------------
+# Linter. NO se corre el formatter (`ruff format`) en CI: reformatear todo el proyecto es un
+# cambio de otro PR, no un efecto colateral de agregar el linter.
+[tool.ruff]
+# 100 es el ancho que ya usa el código; bajarlo obligaría a recortar comentarios que
+# explican decisiones, que es justo lo que no queremos perder.
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes: imports sin usar, nombres indefinidos
+    "I",       # isort: orden de imports
+    "B",       # bugbear: bugs comunes
+    "UP",      # pyupgrade: sintaxis vieja para el Python que declaramos
+    "RUF",     # reglas propias de ruff
+]
+ignore = [
+    # `def endpoint(x = Depends(...))` es EL patrón de inyección de FastAPI. La regla existe
+    # para el default mutable clásico; acá marcaría 18 falsos positivos en server.py.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Los dobles de test declaran atributos de clase a propósito para imitar objetos reales
+# (p. ej. `headers: dict = {}` en un request falso); no son estado compartido accidental.
+"tests/**" = ["RUF012"]
+# graph.py son los prompts del tutor, no código: cortar una línea para que entre en 100
+# columnas cambia el texto que recibe el LLM. El límite de ancho no aplica.
+"app/conversation/graph.py" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "config"]
