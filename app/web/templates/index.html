@@ -14,9 +14,9 @@
 <section id="step-voice" class="card step">
   <h2>La voz de tu tutor</h2>
   <p class="lead">Elige quién te lee las preguntas y a qué ritmo.</p>
-  <p class="notice"><span class="ico">💡</span><span>Para la mejor experiencia (voz del tutor y dictado por voz), usa <strong>Google Chrome</strong> en computadora. En otros navegadores algunas funciones pueden no estar disponibles.</span></p>
-  <label for="voice">Voz</label>
-  <select id="voice"></select>
+  <p class="notice"><span class="ico">💡</span><span>Esta versión funciona solo en <strong>Google Chrome</strong> en computadora: las voces y el dictado por voz dependen de él.</span></p>
+  <label>Voz</label>
+  <div id="voice-buttons" class="voice-picker"></div>
   <label for="rate">Ritmo: <span id="rate-value">0.95</span>×</label>
   <input id="rate" type="range" min="0.5" max="1.3" step="0.05" value="0.95" />
   <div class="row">
@@ -70,7 +70,7 @@
 
   <div id="pron-block" class="hidden">
     <h2 style="margin-top:26px">Tu pronunciación, palabra por palabra</h2>
-    <p class="muted">Cada sonido va coloreado por su score de Azure. Toca una palabra para ver el detalle, o 🔊 para escucharla.</p>
+    <p class="muted">Cada sonido va coloreado por su score. Toca una palabra para ver el detalle, o 🔊 para escucharla.</p>
     <div id="pron-words" class="pron-words"></div>
     <div class="pron-legend">
       <span><i class="dot good"></i>Bien</span>
@@ -182,14 +182,30 @@ function speakAsTutor(text) {
 }
 
 // ---- Paso 1: Voz ----
+// Los botones solo ESCRIBEN la preferencia; quién habla y con qué voz lo resuelve Tts.
+function renderVoiceButtons() {
+  const box = $("voice-buttons");
+  box.innerHTML = "";
+  for (const voice of VOICES) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "small" + (voice.name === Prefs.voiceName() ? " on" : "");
+    button.textContent = voice.label;
+    button.title = voice.name;
+    button.addEventListener("click", () => {
+      Prefs.setVoiceName(voice.name);
+      renderVoiceButtons();
+      Tts.speak("Hi! Let's practice English together.");
+    });
+    box.appendChild(button);
+  }
+}
+
 $("rate").addEventListener("input", () => {
-  const v = Number($("rate").value);
-  $("rate-value").textContent = v.toFixed(2);
-  localStorage.setItem("pilot_rate", String(v));
+  const value = Number($("rate").value);
+  $("rate-value").textContent = value.toFixed(2);
+  Prefs.setRate(value);
 });
-$("voice").addEventListener("change", () =>
-  localStorage.setItem("pilot_voice", $("voice").value)
-);
 $("voice-test").addEventListener("click", () =>
   Tts.speak("Hi! Let's practice English together. Ready when you are.")
 );
@@ -498,6 +514,9 @@ $("restart").addEventListener("click", () => {
 
 // ---- init ----
 Tts.load();
+renderVoiceButtons();
+$("rate").value = Prefs.rate();
+$("rate-value").textContent = Prefs.rate().toFixed(2);
 speechSynthesis.onvoiceschanged = () => Tts.load();
 Oval.init();
 Stepper.go("voice");
