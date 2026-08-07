@@ -39,10 +39,21 @@ class ReadingService:
         # Inyectable para probar sin red; en producción es assess_scripted contra Azure.
         self._assess_fn = assess_fn or assess_scripted
 
-    async def random_excerpt(self) -> dict:
-        """Un texto al azar del catálogo, ya recortado al fragmento que se lee en voz alta."""
-        stored = await self._store.random()
+    async def random_excerpt(self, max_level: int | None = None) -> dict:
+        """Un texto al azar del catálogo, ya recortado al fragmento que se lee en voz alta.
+
+        `max_level` limita la dificultad. Si no hay ninguno que cumpla, se corta con 503 en
+        vez de devolver uno más difícil: dar un nivel 7 a quien pidió "4 o menos" sería
+        ignorar exactamente lo que pidió.
+        """
+        stored = await self._store.random(max_level)
         if stored is None:
+            if max_level is not None:
+                raise ReadingError(
+                    f"No hay textos de nivel {max_level} o menos en el catálogo. "
+                    "Prueba subiendo el nivel máximo.",
+                    status=503,
+                )
             raise ReadingError(
                 "Todavía no hay textos para leer. Corre la ingesta del catálogo "
                 "(`python -m app.reading.ingest`) e intenta de nuevo.",

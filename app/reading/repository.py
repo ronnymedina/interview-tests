@@ -53,8 +53,12 @@ class ReadingTextStore(Protocol):
         """Cuántos textos hay en el catálogo."""
         ...
 
-    async def random(self) -> StoredReadingText | None:
-        """Un texto al azar del catálogo, o None si está vacío."""
+    async def random(self, max_level: int | None = None) -> StoredReadingText | None:
+        """Un texto al azar del catálogo, o None si no hay ninguno que sirva.
+
+        `max_level` es un tope, no un nivel exacto: pedir 5 puede devolver un 4. Los textos
+        sin nivel quedan fuera al filtrar, porque "no sé el nivel" podría ser un 8.
+        """
         ...
 
     async def get(self, reading_id: int) -> StoredReadingText | None:
@@ -133,19 +137,27 @@ class PostgresReadingTextStore:
         assert row is not None  # agregado sin GROUP BY siempre devuelve una fila
         return int(row["n"])
 
-    async def random(self) -> StoredReadingText | None:
-        """Una fila al azar.
+    async def random(self, max_level: int | None = None) -> StoredReadingText | None:
+        """Una fila al azar, opcionalmente limitada por dificultad.
 
         `ORDER BY random()` escanea la tabla entera, lo que sería un problema con millones de
         filas pero es irrelevante con las decenas o pocos cientos que produce la ingesta. La
         alternativa (contar y elegir un offset) cuesta dos viajes y se desincroniza si la
         ingesta inserta entre medio. Si el catálogo creciera de verdad, esto pasa a
         TABLESAMPLE.
+
+        `level <= %s` descarta también las filas con `level IS NULL`, que es lo que queremos:
+        un texto de dificultad desconocida no cumple "5 o menos". El índice
+        `reading_texts_level_idx` es el que sirve a esta comparación.
         """
+        where = "" if max_level is None else "WHERE level <= %s"
+        params = () if max_level is None else (max_level,)
         async with self._storage.connect() as conn:
             row = await (
                 await conn.execute(
-                    f"SELECT {self._COLUMNS} FROM reading_texts ORDER BY random() LIMIT 1"
+                    f"SELECT {self._COLUMNS} FROM reading_texts {where} "
+                    "ORDER BY random() LIMIT 1",
+                    params,
                 )
             ).fetchone()
         return None if row is None else self._to_stored(row)
