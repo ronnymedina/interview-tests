@@ -165,3 +165,18 @@ body.reading main { max-width: 1080px; }
 .voice-picker { display: flex; gap: 8px; flex-wrap: wrap; }
 .voice-picker button { background: transparent; border-color: var(--gold-soft); color: var(--ink); }
 .voice-picker button.on { background: var(--gold-deep); border-color: var(--gold-deep); color: #fff; }
+
+/* Cabecera del panel: el título del artículo y su botón de escuchar en la misma línea. */
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.panel-head h2 { font-size: 1.15rem; color: var(--ink); margin: 0; }
+.panel-head button { flex-shrink: 0; }
+/* La meta va pegada al título, no suelta en el subtítulo de la página. */
+.panel-meta { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; font-size: .85rem; min-height: 1.4em; }
+.panel-meta a { color: var(--muted); }
+.panel-meta a:hover { color: var(--gold); }
+.panel-body p { margin: 0 0 14px; }
+.panel-body p:last-child { margin-bottom: 0; }
+/* El badge de nivel ya no vive dentro de una frase: sin el margen que lo separaba. */
+.panel-meta .badge { margin-left: 0; }
+.inline-label { display: inline; font-size: .85rem; color: var(--muted); margin: 0 0 0 auto; }
+.inline-select { width: auto; padding: 7px 10px; }

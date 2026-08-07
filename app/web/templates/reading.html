@@ -6,12 +6,8 @@
 
 {% block content %}
   <header>
-    <h1 id="reading-title">Lectura en voz alta</h1>
-    <p class="lead">
-      Lee el texto en voz alta. Al terminar, Azure te dice qué palabras fallaste.
-      <span id="reading-level" class="badge hidden"></span>
-      <a id="reading-source" href="#" target="_blank" rel="noopener" class="hidden">Artículo original ↗</a>
-    </p>
+    <h1>Lectura en voz alta</h1>
+    <p class="lead">Lee el texto en voz alta. Al terminar te decimos qué palabras fallaste.</p>
   </header>
 
   {# Fila de scores: sólo aparece en el estado de review. #}
@@ -19,11 +15,20 @@
 
   <div class="split">
     <section class="panel card">
-      <h2>Texto de referencia</h2>
+      <div class="panel-head">
+        <h2 id="reading-title">Cargando…</h2>
+        <button id="btn-listen" type="button" class="ghost small" disabled>🔊 Escuchar</button>
+      </div>
+      <p class="panel-meta">
+        <span id="reading-level" class="badge hidden"></span>
+        <a id="reading-source" href="#" target="_blank" rel="noopener" class="hidden">Artículo original ↗</a>
+      </p>
       <div id="reading-text" class="panel-body">Cargando un texto…</div>
     </section>
     <section class="panel card">
-      <h2 id="right-title">Lo que estás diciendo</h2>
+      <div class="panel-head">
+        <h2 id="right-title">Lo que estás diciendo</h2>
+      </div>
       <div id="reading-said" class="panel-body"></div>
     </section>
   </div>
@@ -31,6 +36,13 @@
   <div class="row">
     <button id="btn-record" type="button" disabled>Empezar a leer</button>
     <button id="btn-another" type="button" class="ghost">Otro texto</button>
+    <label for="max-level" class="inline-label">Nivel máximo</label>
+    <select id="max-level" class="inline-select">
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+    </select>
     <span id="reading-timer" class="counter"></span>
   </div>
 
