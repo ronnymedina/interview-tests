@@ -59,3 +59,29 @@ def test_todas_las_palabras_del_extracto_estan_en_el_cuerpo(body, max_words):
 def test_es_determinista(body, max_words):
     """Es la propiedad de la que depende que no haga falta cachear el extracto."""
     assert make_excerpt(body, max_words) == make_excerpt(body, max_words)
+
+
+def test_conserva_los_saltos_de_parrafo():
+    """Los artículos de Engoo vienen con párrafos; el extracto no debe aplanarlos."""
+    body = "One two three.\n\nFour five six.\n\nSeven eight nine."
+    assert make_excerpt(body, 7) == "One two three.\n\nFour five six."
+
+
+def test_conserva_los_espacios_dobles_del_original():
+    body = "One  two three. Four five six. Seven eight."
+    assert make_excerpt(body, 6) == "One  two three. Four five six."
+
+
+def test_corte_por_palabras_tambien_conserva_los_espacios():
+    """Cuando ni la primera oración cabe, el recorte sigue siendo texto literal."""
+    body = "One  two three four five."
+    assert make_excerpt(body, 3) == "One  two three"
+
+
+@given(
+    body=st.text(min_size=0, max_size=500),
+    max_words=st.integers(min_value=1, max_value=50),
+)
+def test_el_extracto_es_un_prefijo_literal_del_cuerpo(body, max_words):
+    """La garantía de la que dependen las demás: no se pierde ni un espacio ni un salto."""
+    assert body.strip().startswith(make_excerpt(body, max_words))
