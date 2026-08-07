@@ -11,8 +11,10 @@
     <main>
       {# Navegación entre modalidades. Vive acá para que cada página nueva la herede. #}
       <nav class="modes">
-        <a href="/" class="{% block nav_conversation %}{% endblock %}">Conversación</a>
-        <a href="/reading" class="{% block nav_reading %}{% endblock %}">Lectura</a>
+        <div class="tabs">
+          <a href="/" class="{% block nav_conversation %}{% endblock %}">Conversación</a>
+          <a href="/reading" class="{% block nav_reading %}{% endblock %}">Lectura</a>
+        </div>
       </nav>
 
       {# Banner de pausa/cuota: común a todas las modalidades, lo llena showBanner(). #}
