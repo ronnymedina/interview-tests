@@ -79,8 +79,9 @@ def _build_conversation_service() -> ConversationService | None:
 
 
 _conversation_service = _build_conversation_service()
-# El almacenamiento es perezoso (no conecta al construirse), así que el repositorio siempre
-# está disponible; si Postgres está caído, el error aparece al ejecutar la consulta.
+# El almacenamiento es perezoso (no conecta al construirse), así que los repositorios y
+# servicios que lo reciben siempre se pueden construir; si Postgres está caído, el error
+# aparece al ejecutar la consulta.
 _storage = PostgresStorage(settings.DATABASE_URL)
 
 # LimitsService: SIEMPRE se construye (la cuota/presupuesto son parte del piloto). Comparte el
