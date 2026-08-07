@@ -16,20 +16,23 @@
   <div class="split">
     <section class="panel card">
       <div class="panel-head">
-        <h2 id="reading-title">Cargando…</h2>
-        <button id="btn-listen" type="button" class="ghost small" disabled>🔊 Escuchar</button>
+        {# El título es el enlace al artículo original: evita una línea suelta sólo para eso. #}
+        <h2>
+          <a id="reading-source" class="title-link" href="#" target="_blank" rel="noopener">
+            <span id="reading-title">Cargando…</span><span class="ext" aria-hidden="true">↗</span>
+          </a>
+        </h2>
+        <p class="panel-meta">
+          <span id="reading-level" class="badge hidden"></span>
+          <button id="btn-listen" type="button" class="ghost small icon-button"
+                  disabled title="Escuchar el texto" aria-label="Escuchar el texto">🔊</button>
+        </p>
       </div>
-      <p class="panel-meta">
-        <span id="reading-level" class="badge hidden"></span>
-        <a id="reading-source" href="#" target="_blank" rel="noopener" class="hidden">Artículo original ↗</a>
-      </p>
-      <div id="reading-text" class="panel-body">Cargando un texto…</div>
+      <div id="reading-text" class="panel-body reader">Cargando un texto…</div>
     </section>
     <section class="panel card">
-      <div class="panel-head">
-        <h2 id="right-title">Lo que estás diciendo</h2>
-      </div>
-      <div id="reading-said" class="panel-body"></div>
+      <h2 id="right-title">Lo que estás diciendo</h2>
+      <div id="reading-said" class="panel-body said"></div>
     </section>
   </div>
 
