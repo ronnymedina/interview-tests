@@ -21,6 +21,10 @@ dependencies = [
     "beautifulsoup4>=4.13",
     "structlog>=25.4",
     "pydantic-settings>=2.14.2",
+    # Migraciones del esquema. Va en produccion y no en dev porque el lifespan del servidor
+    # corre `upgrade head` al arrancar. Arrastra SQLAlchemy como dependencia dura, aunque el
+    # proyecto no lo use como ORM: las migraciones se escriben a mano con op.execute().
+    "alembic>=1.16",
 ]
 
 # Herramientas de testing / calidad: NO van a la imagen de producción. El
