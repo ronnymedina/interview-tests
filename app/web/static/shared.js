@@ -187,6 +187,38 @@ function showBanner(reason) {
   }
 }
 
+// ---- TTS (text to speech): la voz que lee un texto en voz alta ----
+// Vive acá porque lo usan las dos modalidades: el tutor que lee las preguntas y el 🔊 de
+// cada palabra. No mira la pantalla: la voz y el ritmo se los pide a Prefs, así funciona
+// igual en una página con controles de voz y en una sin ellos.
+const Tts = {
+  voices: [],
+
+  load() {
+    this.voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+  },
+
+  speak(text, { onstart, onboundary, onend } = {}) {
+    if (!text) { onend && onend(); return; }
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = this.voices.find((v) => v.name === Prefs.voiceName()) || null;
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice ? voice.lang : "en-US";
+    utterance.rate = Prefs.rate();
+    if (onstart) utterance.onstart = onstart;
+    if (onboundary) utterance.onboundary = onboundary;
+    utterance.onend = () => onend && onend();
+    speechSynthesis.speak(utterance);
+  },
+
+  // Corta lo que esté sonando. `speak` ya cancela lo anterior, pero esto hace falta para
+  // parar sin empezar nada nuevo (el botón Detener, o al abrir el micrófono).
+  stop() {
+    speechSynthesis.cancel();
+  },
+};
+
 // ---- Pronunciación palabra por palabra (datos objetivos de Azure) ----
 // Portado del frontend legacy: cada palabra se colorea por su accuracy, con los
 // sonidos (IPA) visibles y un detalle expandible con el score de cada fonema.
