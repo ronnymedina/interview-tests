@@ -35,14 +35,17 @@
 
   <div class="row">
     <button id="btn-record" type="button" disabled>Empezar a leer</button>
-    <button id="btn-another" type="button" class="ghost">Otro texto</button>
-    <label for="max-level" class="inline-label">Nivel máximo</label>
-    <select id="max-level" class="inline-select">
-      <option value="4">4</option>
-      <option value="5">5</option>
-      <option value="6">6</option>
-      <option value="7">7</option>
-    </select>
+    {# El nivel va pegado a "Otro texto" porque es lo que condiciona: qué texto se pide. #}
+    <span class="control-group">
+      <button id="btn-another" type="button" class="ghost">Otro texto</button>
+      <label for="max-level" class="inline-label">nivel máx.</label>
+      <select id="max-level" class="inline-select">
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="7">7</option>
+      </select>
+    </span>
     <span id="reading-timer" class="counter"></span>
   </div>
 
