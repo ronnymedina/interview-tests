@@ -173,5 +173,24 @@ class Settings(BaseSettings):
             return self.LOG_FORMAT
         return "console" if sys.stderr.isatty() else "json"
 
+    @property
+    def sqlalchemy_url(self) -> str:
+        """`DATABASE_URL` en el dialecto que entiende SQLAlchemy, que es lo que usa Alembic.
+
+        psycopg lee `postgresql://` sin problema, pero SQLAlchemy resuelve ese esquema al
+        driver psycopg2, que este proyecto no instala. Hay que pedirle psycopg 3 de forma
+        explicita con `postgresql+psycopg://`. Se acepta ademas el alias `postgres://`,
+        que es como lo entregan algunos proveedores gestionados.
+        """
+        url = self.DATABASE_URL
+        for prefix in ("postgresql+", "postgresql://", "postgres://"):
+            if url.startswith(prefix):
+                if prefix == "postgresql+":
+                    return url
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        raise ValueError(
+            f"DATABASE_URL no apunta a Postgres: {url!r}. El proyecto solo soporta Postgres."
+        )
+
 
 settings = Settings()
