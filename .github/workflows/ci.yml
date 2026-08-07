@@ -5,7 +5,7 @@
 # ejecutan exactamente el mismo entorno (mismo Python, mismo uv.lock), y un fallo en CI se
 # reproduce local con un solo comando.
 #
-# Orden: lint y tests+coverage en paralelo (los dos bloquean) -> imagen de producción.
+# Orden: lint, tipos y tests+coverage en paralelo (los tres bloquean) -> imagen de producción.
 
 name: CI
 
@@ -37,6 +37,27 @@ jobs:
           args: check --output-format=github
 
   # -------------------------------------------------------------------------------------
+  # Tipado estático. Los type hints no hacen nada en runtime; su valor lo desbloquea este
+  # chequeo, y corriendo acá ningún PR entra sin pasarlo. La config (gradual typing, con
+  # `strict` ya activo en los módulos que lo cumplen) está en pyproject.toml.
+  # -------------------------------------------------------------------------------------
+  types:
+    name: Tipos (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      # No se chequea tests/: los dobles usan duck typing a propósito y anotarlos para
+      # mypy los volvería más rígidos que el código que prueban.
+      - run: uv run mypy app config.py
+
+  # -------------------------------------------------------------------------------------
   # Tests unitarios + coverage. El umbral (fail_under) está en pyproject.toml: si la
   # cobertura baja del piso, `coverage report` sale con código != 0 y el build falla acá.
   # -------------------------------------------------------------------------------------
@@ -66,7 +87,7 @@ jobs:
   build:
     name: Imagen de producción
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, types, test]
     steps:
       - uses: actions/checkout@v4
 

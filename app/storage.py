@@ -105,11 +105,9 @@ class PostgresStorage:
         así dos operaciones en paralelo no se pisan la misma conexión. Las filas salen como
         dict (`dict_row`), así el repositorio accede por nombre de columna (`row["col"]`).
         """
-        # cast + ignore: los stubs de psycopg no resuelven bien el overload de
-        # `connect(..., row_factory=dict_row)`, aunque en runtime devuelve DictRow.
         conn = cast(
             "psycopg.Connection[DictRow]",
-            psycopg.connect(self._dsn, row_factory=dict_row),  # type: ignore[call-overload]
+            psycopg.connect(self._dsn, row_factory=dict_row),
         )
         try:
             yield conn
@@ -155,10 +153,7 @@ class AsyncPostgresStorage:
         servidor, reteniendo snapshots. En la tarea periódica, que vive días, cada fallo
         filtraría una conexión.
         """
-        # Mismo cast + ignore que en la versión sincrónica: los stubs de psycopg no
-        # resuelven el overload de `connect(..., row_factory=dict_row)`.
-        raw = await psycopg.AsyncConnection.connect(self._dsn, row_factory=dict_row)  # type: ignore[call-overload]
-        conn = cast("psycopg.AsyncConnection[DictRow]", raw)
+        conn = await psycopg.AsyncConnection.connect(self._dsn, row_factory=dict_row)
         try:
             yield conn
             await conn.commit()

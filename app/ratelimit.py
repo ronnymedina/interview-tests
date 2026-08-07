@@ -80,7 +80,9 @@ def client_ip(request) -> str:
     Detrás de un proxy, `request.client.host` es la IP del proxy; la del cliente viene como
     primer valor de `X-Forwarded-For`. Se usa esa cuando está presente.
     """
-    forwarded = request.headers.get("x-forwarded-for")
+    # La anotacion no es decorativa: `headers.get` viene sin tipar, y sin ella todo el
+    # encadenado de abajo queda en Any y la funcion deja de garantizar que devuelve str.
+    forwarded: str | None = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return str(request.client.host) if request.client else "unknown"

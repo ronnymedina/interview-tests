@@ -7,6 +7,7 @@ azure_speech.py; se conserva solo lo que usa el modo unscripted del piloto.
 
 import json
 import threading
+from typing import Any
 
 import azure.cognitiveservices.speech as speechsdk
 
@@ -65,7 +66,7 @@ class AzureSpeechClient:
     def _run_continuous(recognizer: "speechsdk.SpeechRecognizer") -> dict:
         """Corre el reconocimiento continuo y junta los resultados de todos los segmentos."""
         done = threading.Event()
-        state = {
+        state: dict[str, Any] = {
             "words": [],
             "prosody_scores": [],
             "durations": [],
