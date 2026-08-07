@@ -103,7 +103,7 @@ uv run coverage run -m pytest && uv run coverage report    # con cobertura
 docker build --target test .                               # igual que en CI
 ```
 
-El piso de cobertura es **60 %** (`fail_under` en `pyproject.toml`): si baja de ahi, el
+El piso de cobertura es **68 %** (`fail_under` en `pyproject.toml`): si baja de ahi, el
 build falla. Los tests que necesiten infraestructura real (Postgres, Azure, red) van
 marcados con `@pytest.mark.integration` y quedan fuera del stage `test`, que no levanta
 servicios.
