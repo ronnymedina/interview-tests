@@ -111,3 +111,23 @@ async def test_assess_devuelve_el_texto_de_referencia_para_pintar_el_diff():
     result = await service.assess(1, b"fake wav")
     assert result["reference_text"] == "One two three. Four five six."
     assert result["scores"]["pronunciation"] == 90.0
+
+
+# --- filtro por nivel máximo ------------------------------------------------------------
+
+async def test_random_excerpt_propaga_el_nivel_maximo():
+    store = InMemoryReadingTextStore([a_text(level=7), a_text(level=4)])
+    service = ReadingService(store, assess_fn=FakeAssess())
+    result = await service.random_excerpt(max_level=5)
+    assert result["level"] == 4
+
+
+async def test_sin_textos_del_nivel_pedido_es_503_con_el_motivo():
+    """Devolver uno más difícil sería ignorar lo que el usuario pidió."""
+    service = ReadingService(
+        InMemoryReadingTextStore([a_text(level=7)]), assess_fn=FakeAssess()
+    )
+    with pytest.raises(ReadingError) as exc:
+        await service.random_excerpt(max_level=4)
+    assert exc.value.status == 503
+    assert "nivel 4" in str(exc.value)
