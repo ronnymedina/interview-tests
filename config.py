@@ -181,12 +181,23 @@ class Settings(BaseSettings):
         driver psycopg2, que este proyecto no instala. Hay que pedirle psycopg 3 de forma
         explicita con `postgresql+psycopg://`. Se acepta ademas el alias `postgres://`,
         que es como lo entregan algunos proveedores gestionados.
+
+        Un driver explicito distinto de `psycopg` (p. ej. `postgresql+psycopg2://` o
+        `postgresql+asyncpg://`) tambien tiene que fallar aca, y no mas adentro con el
+        error opaco de SQLAlchemy: el proyecto solo instala psycopg 3.
         """
         url = self.DATABASE_URL
-        for prefix in ("postgresql+", "postgresql://", "postgres://"):
+        if url.startswith("postgresql+psycopg://"):
+            return url
+        if url.startswith("postgresql+"):
+            driver = url.split("://", 1)[0].removeprefix("postgresql+")
+            raise ValueError(
+                f"DATABASE_URL pide el driver {driver!r}, pero el proyecto solo soporta "
+                "'psycopg' (psycopg 3). Usa 'postgresql+psycopg://' o dejá el esquema sin "
+                "driver explicito."
+            )
+        for prefix in ("postgresql://", "postgres://"):
             if url.startswith(prefix):
-                if prefix == "postgresql+":
-                    return url
                 return "postgresql+psycopg://" + url[len(prefix) :]
         raise ValueError(
             f"DATABASE_URL no apunta a Postgres: {url!r}. El proyecto solo soporta Postgres."
