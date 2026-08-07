@@ -147,13 +147,22 @@ body.reading main { max-width: 1080px; }
 .modes a { color: var(--muted); text-decoration: none; }
 .modes a:hover { color: var(--ink); }
 .modes a.active { color: var(--gold); font-weight: 600; }
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; --panel-h: 62vh; }
 /* En pantallas angostas los paneles se apilan: leer un texto en una columna de 160px
    no es leer. */
 @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
-.panel { padding: 22px; }
+/* Alto fijo y scroll interno: al llegar el review, el panel derecho se llena de palabras y
+   sin esto crecería empujando los botones fuera de la pantalla. Con el alto fijado, las dos
+   cajas miden siempre lo mismo y los controles no se mueven nunca de sitio. */
+/* Al evaluar aparece la fila de scores, que empujaría los paneles (y con ellos los botones)
+   hacia abajo. Se le resta su alto al de los paneles, así la fila de controles se queda
+   exactamente donde estaba. Los scores son hermanos del .split, de ahí el selector. */
+.scores:not(.hidden) ~ .split { --panel-h: calc(62vh - 100px); }
+.panel { display: flex; flex-direction: column; height: var(--panel-h); min-height: 300px; padding: 22px; }
 .panel h2 { font-size: 1rem; color: var(--muted); margin-bottom: 14px; }
-.panel-body { min-height: 320px; line-height: 1.75; font-size: 1.05rem; }
+/* `min-height: 0` es lo que permite que un hijo flex se encoja por debajo de su contenido;
+   sin él, `overflow-y` no llega a activarse nunca y el panel volvería a crecer. */
+.panel-body { flex: 1; min-height: 0; overflow-y: auto; padding-right: 8px; line-height: 1.75; font-size: 1.05rem; }
 /* Palabra del texto que el usuario no llegó a decir. */
 .omitted { background: rgba(217,58,47,.12); text-decoration: line-through; border-radius: 4px; }
 .badge {
@@ -178,5 +187,10 @@ body.reading main { max-width: 1080px; }
 .panel-body p:last-child { margin-bottom: 0; }
 /* El badge de nivel ya no vive dentro de una frase: sin el margen que lo separaba. */
 .panel-meta .badge { margin-left: 0; }
-.inline-label { display: inline; font-size: .85rem; color: var(--muted); margin: 0 0 0 auto; }
+/* "Otro texto" y el nivel van juntos: el nivel condiciona qué texto se pide, así que suelto
+   al otro extremo de la fila no se leía como parte de esa acción. */
+.control-group { display: inline-flex; align-items: center; gap: 8px; }
+.inline-label { display: inline; font-size: .85rem; color: var(--muted); margin: 0; }
 .inline-select { width: auto; padding: 7px 10px; }
+/* El contador de segundos sí se va al extremo: no es un control, es un indicador. */
+#reading-timer { margin-left: auto; }
