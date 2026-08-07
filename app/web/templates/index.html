@@ -140,45 +140,6 @@ const Stepper = {
   },
 };
 
-// ---- TTS: voces en inglés, rate en localStorage, callbacks para animar el óvalo ----
-const Tts = {
-  voices: [],
-  load() {
-    this.voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-    const sel = $("voice");
-    const saved = localStorage.getItem("pilot_voice");
-    sel.innerHTML = "";
-    this.voices.forEach((v, i) => {
-      const opt = document.createElement("option");
-      opt.value = String(i);
-      opt.textContent = `${v.name} (${v.lang})`;
-      sel.appendChild(opt);
-    });
-    if (saved !== null && this.voices[Number(saved)]) {
-      sel.value = saved;
-    } else {
-      // Voz por defecto recomendada (disponible en Chrome). Si no está, queda la primera.
-      const preferred = this.voices.findIndex((v) => v.name === "Google US English");
-      if (preferred >= 0) sel.value = String(preferred);
-    }
-    const rate = localStorage.getItem("pilot_rate");
-    if (rate) { $("rate").value = rate; $("rate-value").textContent = Number(rate).toFixed(2); }
-  },
-  speak(text, { onstart, onboundary, onend } = {}) {
-    if (!text) { onend && onend(); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const v = this.voices[Number($("voice").value)] || null;
-    if (v) u.voice = v;
-    u.lang = v ? v.lang : "en-US";
-    u.rate = Number($("rate").value);
-    if (onstart) u.onstart = onstart;
-    if (onboundary) u.onboundary = onboundary;
-    u.onend = () => onend && onend();
-    speechSynthesis.speak(u);
-  },
-};
-
 // ---- Óvalo tutor: reposo / hablando (pulsa con la voz) / grabando ----
 const Oval = {
   el: null,

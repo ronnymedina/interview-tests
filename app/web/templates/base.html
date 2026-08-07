@@ -25,6 +25,8 @@
         {% block content %}{% endblock %}
       </div>
     </main>
+    {# prefs.js va primero: shared.js usa Prefs para saber con qué voz hablar. #}
+    <script src="/static/prefs.js"></script>
     <script src="/static/shared.js"></script>
     {% block scripts %}{% endblock %}
   </body>
