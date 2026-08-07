@@ -1,4 +1,4 @@
-"""Módulo de conversación: configuración persistida, el grafo de práctica y su orquestación."""
+"""Módulo de conversación: el grafo de práctica y su orquestación."""
 
 from .graph import (
     FeedbackReport,
@@ -8,18 +8,12 @@ from .graph import (
     build_graph,
     initial_state,
 )
-from .model import ConversationConfig
-from .repository import ConversationRepository
-from .schemas import AnswerRequest, ConfigRequest, StartRequest
+from .schemas import StartRequest
 from .service import ConversationError, ConversationService, build_service
 from .synthesizer import Synthesizer
 
 __all__ = [
-    "AnswerRequest",
-    "ConfigRequest",
-    "ConversationConfig",
     "ConversationError",
-    "ConversationRepository",
     "ConversationService",
     "FeedbackReport",
     "PhraseSuggestion",

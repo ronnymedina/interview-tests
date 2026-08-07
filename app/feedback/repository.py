@@ -2,8 +2,8 @@
 
 Aísla el SQL: el endpoint guarda una respuesta llamando `save`, sin escribir SQL a mano.
 Recibe el almacenamiento por inyección de dependencia y NO crea la tabla (eso lo hace
-`PostgresStorage.init_schema()` o el init del contenedor). Mismo patrón que
-`ConversationRepository`. `created_at` lo pone Postgres por DEFAULT now().
+`PostgresStorage.init_schema()` o el init del contenedor). `created_at` lo pone Postgres
+por DEFAULT now().
 """
 
 from app.feedback.schemas import FeedbackRequest
