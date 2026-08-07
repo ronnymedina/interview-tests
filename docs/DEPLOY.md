@@ -33,15 +33,24 @@ docker build --target production -t review-ingles:prod .  # imagen final
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) corre en push y PR contra `main` y
-`develop`, en dos jobs encadenados:
+`develop`, en tres jobs:
 
-1. **Tests unitarios y coverage** — construye el stage `test`.
-2. **Imagen de produccion** — solo si el anterior paso. Nunca se publica una imagen verde
-   sobre una suite roja.
+1. **Lint (ruff)** y **Tests unitarios y coverage**, en paralelo. Los dos bloquean.
+2. **Imagen de produccion** — solo si los dos anteriores pasaron. Nunca se publica una
+   imagen verde sobre una suite roja.
 
-El CI no instala nada por su cuenta: usa el mismo Dockerfile que vos. Por eso un fallo
-remoto se reproduce local con un solo comando (`docker build --target test .`) en vez de
-tener que adivinar en que se diferencia el runner de tu maquina.
+Lint y tests van en paralelo a proposito: un error de estilo no debe tapar un test roto, ni
+al reves.
+
+El job de tests no instala nada por su cuenta: construye el stage `test` del Dockerfile. Por
+eso un fallo remoto se reproduce local con un solo comando (`docker build --target test .`)
+en vez de tener que adivinar en que se diferencia el runner de tu maquina.
+
+El lint es la excepcion: corre `ruff` directo, sin Docker, porque tarda segundos y no
+necesita el entorno completo. Local es `uv run ruff check .`.
+
+Si la cobertura baja del **60 %** (`fail_under` en `pyproject.toml`), `coverage report` sale
+con codigo != 0 y el build falla.
 
 El cache de capas se guarda en GitHub Actions (`type=gha`), asi que las deps no se
 reinstalan en cada run.

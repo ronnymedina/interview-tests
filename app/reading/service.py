@@ -12,11 +12,11 @@ import os
 import tempfile
 from collections.abc import Callable
 
-from config import settings
 from app.reading.excerpt import make_excerpt
 from app.reading.repository import PostgresReadingTextStore, ReadingTextStore
 from app.speech.assessment import SpeechError, assess_scripted
 from app.storage import AsyncPostgresStorage
+from config import settings
 
 
 class ReadingError(Exception):
@@ -87,7 +87,7 @@ class ReadingService:
             # Se traduce en vez de dejarla salir: el endpoint sólo conoce ReadingError, y sin
             # esto un 502 de Azure o un 422 de "no se detectó voz" llegarían al usuario como
             # un 500 genérico.
-            raise ReadingError(str(error), status=error.status)
+            raise ReadingError(str(error), status=error.status) from error
         finally:
             os.unlink(wav_path)
 

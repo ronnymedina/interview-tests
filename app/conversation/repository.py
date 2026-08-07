@@ -22,7 +22,7 @@ script de init del contenedor Postgres o `PostgresStorage.init_schema()`):
     );
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.conversation.model import ConversationConfig
@@ -34,7 +34,7 @@ _COLUMNS = "id, created_at, updated_at, name, user_context"
 
 def _now() -> str:
     """Timestamp UTC en ISO-8601 con precisión de segundos, como el resto del proyecto."""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 class ConversationRepository:

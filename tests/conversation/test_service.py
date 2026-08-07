@@ -2,8 +2,8 @@
 
 import pytest
 
-from config import settings
 from app.conversation.service import ConversationError, build_llm
+from config import settings
 
 
 def test_build_llm_without_api_key_raises_500(monkeypatch):

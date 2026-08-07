@@ -9,12 +9,13 @@ obtener contenido que ya se tiene.
 """
 
 import asyncio
+
 import structlog
 
-from config import settings
 from app.reading.ingest import run_ingest
 from app.reading.repository import ReadingTextStore
 from app.reading.sources import ReadingSource
+from config import settings
 
 logger = structlog.get_logger(__name__)
 

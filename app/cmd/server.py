@@ -20,7 +20,6 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 import structlog
-
 from fastapi import (
     Depends,
     FastAPI,
@@ -37,9 +36,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from langchain_core.callbacks import get_usage_metadata_callback
 
-from config import settings
 from app import conversation
-from app.ratelimit import IpRateLimiter, client_ip
 from app.conversation import (
     ConversationConfig,
     ConversationError,
@@ -49,11 +46,13 @@ from app.conversation import (
 from app.feedback import FeedbackRepository, FeedbackRequest
 from app.limits import LimitsService, build_limits_service
 from app.logconfig import configure_logging
+from app.ratelimit import IpRateLimiter, client_ip
 from app.reading import ReadingError, ReadingService, build_reading_service
 from app.reading.ingest import build_default_ingest
 from app.reading.scheduler import ingest_loop
 from app.speech import SpeechService, build_speech_service
 from app.storage import AsyncPostgresStorage, PostgresStorage
+from config import settings
 
 # Al importar y no solo en el `lifespan`: uvicorn importa este módulo antes de emitir sus
 # primeras líneas ("Started server process"), y sin esto esas líneas salen con el formato de
@@ -244,7 +243,10 @@ def get_user_id(x_user_id: str = Header(default="")) -> str:
 
 
 def _gemini_tokens(callback) -> tuple[int, int]:
-    """Suma input/output tokens capturados por get_usage_metadata_callback (por todos los modelos)."""
+    """Suma los input/output tokens capturados por get_usage_metadata_callback.
+
+    Agrega los de todos los modelos que hayan intervenido en el turno.
+    """
     input_tokens = output_tokens = 0
     for usage in callback.usage_metadata.values():
         input_tokens += usage.get("input_tokens", 0)
@@ -271,7 +273,7 @@ def conversation_start(
         decision = limits.check_can_start(user_id)
     except Exception:
         logger.exception("check_can_start falló (¿Postgres?); se corta conservador como 'paused'.")
-        raise HTTPException(status_code=429, detail={"reason": "paused"})
+        raise HTTPException(status_code=429, detail={"reason": "paused"}) from None
 
     if not decision.allowed:
         raise HTTPException(status_code=429, detail={"reason": decision.reason})
@@ -282,7 +284,7 @@ def conversation_start(
                 payload.user_context, payload.max_questions
             )
     except ConversationError as error:
-        raise HTTPException(status_code=error.status, detail=str(error))
+        raise HTTPException(status_code=error.status, detail=str(error)) from error
 
     limits.record_conversation_start(user_id, conversation_id)
     input_tokens, output_tokens = _gemini_tokens(callback)
@@ -325,7 +327,7 @@ def conversation_answer(
         with get_usage_metadata_callback() as callback:
             result = service.answer(conversation_id, text)
     except ConversationError as error:
-        raise HTTPException(status_code=error.status, detail=str(error))
+        raise HTTPException(status_code=error.status, detail=str(error)) from error
 
     input_tokens, output_tokens = _gemini_tokens(callback)
     is_final = "final" in result
@@ -372,7 +374,7 @@ async def reading_random(
         decision = await asyncio.to_thread(limits.check_can_read, user_id)
     except Exception:
         logger.exception("check_can_read falló (¿Postgres?); se corta conservador como 'paused'.")
-        raise HTTPException(status_code=429, detail={"reason": "paused"})
+        raise HTTPException(status_code=429, detail={"reason": "paused"}) from None
 
     if not decision.allowed:
         raise HTTPException(status_code=429, detail={"reason": decision.reason})
@@ -380,7 +382,7 @@ async def reading_random(
     try:
         return await reading.random_excerpt(max_level)
     except ReadingError as error:
-        raise HTTPException(status_code=error.status, detail=str(error))
+        raise HTTPException(status_code=error.status, detail=str(error)) from error
 
 
 @app.post("/reading/assess")
@@ -403,7 +405,7 @@ async def reading_assess(
         decision = await asyncio.to_thread(limits.check_can_read, user_id)
     except Exception:
         logger.exception("check_can_read falló (¿Postgres?); se corta conservador como 'paused'.")
-        raise HTTPException(status_code=429, detail={"reason": "paused"})
+        raise HTTPException(status_code=429, detail={"reason": "paused"}) from None
 
     if not decision.allowed:
         raise HTTPException(status_code=429, detail={"reason": decision.reason})
@@ -411,7 +413,7 @@ async def reading_assess(
     try:
         result = await reading.assess(reading_id, await audio.read())
     except ReadingError as error:
-        raise HTTPException(status_code=error.status, detail=str(error))
+        raise HTTPException(status_code=error.status, detail=str(error)) from error
 
     await asyncio.to_thread(limits.record_reading_start, user_id, reading_id)
     await asyncio.to_thread(
