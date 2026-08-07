@@ -108,17 +108,30 @@ build falla. Los tests que necesiten infraestructura real (Postgres, Azure, red)
 marcados con `@pytest.mark.integration` y quedan fuera del stage `test`, que no levanta
 servicios.
 
-## Lint
+## Lint y tipos
 
-[ruff](https://github.com/astral-sh/ruff) como linter, configurado en `pyproject.toml`:
+[ruff](https://github.com/astral-sh/ruff) como linter y [mypy](https://mypy-lang.org/) para
+el chequeo estatico de tipos. Ambos configurados en `pyproject.toml` y ambos bloquean el CI:
 
 ```bash
 uv run ruff check .          # lo mismo que corre el CI
 uv run ruff check . --fix    # arregla lo que se pueda solo
+uv run mypy app config.py    # tipos
 ```
 
 No se corre `ruff format`: reformatear todo el proyecto es un cambio aparte, no un efecto
 colateral del linter.
+
+**Tipado gradual.** Los type hints no hacen nada en runtime — Python los ignora; su valor lo
+desbloquea mypy, que los verifica antes de ejecutar. La base global es permisiva para que el
+chequeo pase hoy, y el modo estricto ya esta activo en los modulos que lo cumplen (`limits`,
+`feedback`, `logconfig`, `config`, y casi todo `reading` y `conversation`). Falta llevar a
+estricto `cmd/server.py`, `speech/*`, `storage.py`, `ratelimit.py`, `conversation/graph.py`
+y `service.py`, y `reading/service.py` y `repository.py`: la lista esta en `pyproject.toml`
+y la idea es que solo crezca.
+
+> Cuidado al editar esa config: `strict = true` dentro de una seccion per-module de mypy
+> **se aplica al proyecto entero**, no al modulo. Por eso los flags estan expandidos a mano.
 
 ## Estructura
 
