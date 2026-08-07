@@ -160,3 +160,8 @@ body.reading main { max-width: 1080px; }
   display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 999px;
   background: var(--gold-soft); color: var(--ink); font-size: .8rem; font-weight: 600;
 }
+
+/* Selector de voz: tres botones en vez de un <select>. El activo usa .on, que ya existe. */
+.voice-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.voice-picker button { background: transparent; border-color: var(--gold-soft); color: var(--ink); }
+.voice-picker button.on { background: var(--gold-deep); border-color: var(--gold-deep); color: #fff; }
