@@ -19,7 +19,9 @@ function clearError() {
 // ---- Estado 1: listo ----
 async function loadText() {
   clearError();
+  stopListening();
   $("btn-record").disabled = true;
+  $("btn-listen").disabled = true;
   $("btn-record").textContent = "Empezar a leer";
   $("reading-text").textContent = "Cargando un texto…";
   $("reading-said").innerHTML = "";
@@ -28,14 +30,15 @@ async function loadText() {
   $("right-title").textContent = "Lo que estás diciendo";
 
   try {
-    current = await Api.request("GET", "/reading/random");
+    current = await Api.request("GET", `/reading/random?max_level=${Prefs.maxLevel()}`);
   } catch (err) {
     if (err.reason) return showBanner(err.reason);
     $("reading-text").textContent = "";
+    $("reading-title").textContent = "Sin texto";
     return showError(err.message);
   }
 
-  $("reading-text").textContent = current.excerpt;
+  renderExcerpt(current.excerpt);
   $("reading-title").textContent = current.title;
 
   const level = $("reading-level");
@@ -51,6 +54,38 @@ async function loadText() {
   source.classList.remove("hidden");
 
   $("btn-record").disabled = false;
+  $("btn-listen").disabled = false;
+}
+
+// Un <p> por párrafo: el extracto conserva los saltos del artículo original, y el HTML los
+// colapsaría a un espacio si se pintara como texto plano.
+function renderExcerpt(text) {
+  const box = $("reading-text");
+  box.innerHTML = "";
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    if (!paragraph.trim()) continue;
+    const p = document.createElement("p");
+    p.textContent = paragraph.trim();
+    box.appendChild(p);
+  }
+}
+
+// ---- Escuchar el texto ----
+// El mismo botón alterna entre leer y cortar, así siempre hay salida: nunca queda una voz
+// sonando sin forma de pararla.
+let listening = false;
+
+function stopListening() {
+  Tts.stop();
+  listening = false;
+  $("btn-listen").textContent = "🔊 Escuchar";
+}
+
+function toggleListen() {
+  if (listening) return stopListening();
+  listening = true;
+  $("btn-listen").textContent = "⏹ Detener";
+  Tts.speak(current.excerpt, { onend: stopListening });
 }
 
 // ---- Estado 2: hablando ----
@@ -91,6 +126,7 @@ async function toggleRecording() {
     return;
   }
   clearError();
+  stopListening(); // el micrófono se abre: la voz del tutor se calla
   $("reading-said").textContent = "";
   active = newRecorder();
   await active.start(sendForReview);
@@ -129,7 +165,9 @@ function renderReview(result) {
   const said = $("reading-said");
   said.innerHTML = "";
   said.classList.add("pron-words");
-  (result.words || []).forEach((word) => said.appendChild(renderWord(word, () => {})));
+  (result.words || []).forEach((word) =>
+    said.appendChild(renderWord(word, (t) => Tts.speak(t)))
+  );
 
   // Izquierda: el texto real, con las palabras omitidas tachadas. Se pinta sobre el texto de
   // referencia que devolvió el servidor, no sobre la copia que tenga el navegador.
@@ -140,13 +178,18 @@ function renderReview(result) {
   );
   const left = $("reading-text");
   left.innerHTML = "";
-  (result.reference_text || current.excerpt).split(/\s+/).forEach((token) => {
-    const bare = token.toLowerCase().replace(/[^a-z']/g, "");
-    const span = document.createElement("span");
-    span.textContent = token + " ";
-    if (omitted.has(bare)) span.className = "omitted";
-    left.appendChild(span);
-  });
+  for (const paragraph of (result.reference_text || current.excerpt).split(/\n\s*\n/)) {
+    if (!paragraph.trim()) continue;
+    const p = document.createElement("p");
+    for (const token of paragraph.trim().split(/\s+/)) {
+      const bare = token.toLowerCase().replace(/[^a-z']/g, "");
+      const span = document.createElement("span");
+      span.textContent = token + " ";
+      if (omitted.has(bare)) span.className = "omitted";
+      p.appendChild(span);
+    }
+    left.appendChild(p);
+  }
 
   // Arriba: los scores. `completeness` sólo existe en modo scripted, que es el de lectura.
   const scores = result.scores || {};
@@ -173,4 +216,13 @@ function renderReview(result) {
 
 $("btn-record").addEventListener("click", toggleRecording);
 $("btn-another").addEventListener("click", loadText);
+$("btn-listen").addEventListener("click", toggleListen);
+$("max-level").addEventListener("change", () => {
+  Prefs.setMaxLevel($("max-level").value);
+  loadText(); // el texto actual puede estar por encima del nuevo tope
+});
+
+Tts.load();
+speechSynthesis.onvoiceschanged = () => Tts.load();
+$("max-level").value = String(Prefs.maxLevel());
 loadText();
