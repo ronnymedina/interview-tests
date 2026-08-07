@@ -49,7 +49,7 @@ en vez de tener que adivinar en que se diferencia el runner de tu maquina.
 El lint es la excepcion: corre `ruff` directo, sin Docker, porque tarda segundos y no
 necesita el entorno completo. Local es `uv run ruff check .`.
 
-Si la cobertura baja del **60 %** (`fail_under` en `pyproject.toml`), `coverage report` sale
+Si la cobertura baja del **68 %** (`fail_under` en `pyproject.toml`), `coverage report` sale
 con codigo != 0 y el build falla.
 
 El cache de capas se guarda en GitHub Actions (`type=gha`), asi que las deps no se

@@ -60,12 +60,13 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
-# Piso duro: por debajo de esto el build falla. El total hoy es 70 % contando ramas, así
-# que hay ~10 puntos de margen a propósito: un piso pegado al valor actual se rompe con el
-# primer commit que agregue código, y el equipo termina bajándolo en vez de escribir tests.
+# Piso duro: por debajo de esto el build falla. El total hoy es 70.35 % contando ramas, así
+# que el margen son ~2 puntos (unas 36 líneas o ramas). Es apretado a propósito: la idea es
+# que agregar código sin tests duela enseguida. La contracara es que un commit grande puede
+# tener que traer sus tests en el mismo PR — que es justamente lo que se busca.
 # Lo que falta cubrir son los adaptadores reales (azure_client, sources/engoo, los
 # repository de Postgres), que necesitan tests de integración.
-fail_under = 60
+fail_under = 68
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
