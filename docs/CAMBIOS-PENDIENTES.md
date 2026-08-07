@@ -2,6 +2,10 @@
 
 Ideas discutidas todavia no implementadas, ordenadas por impacto/esfuerzo.
 
+> Nota: estas ideas se escribieron cuando el codigo vivia en la raiz. Sus equivalentes
+> actuales estan en `app/`: el frontend en `app/web/static/`, y la logica de Azure en
+> `app/speech/` (`azure_client.py` + `assessment.py`).
+
 ## Latencia de Azure (mejorar tiempo de respuesta)
 
 La demora **no** viene de la capa gratuita (F0 y S0 tienen la misma latencia por
@@ -14,12 +18,12 @@ peticion; F0 solo limita cuota). Las causas reales y sus posibles arreglos:
 - [ ] **Streaming mientras se habla** (cambio de arquitectura, alto impacto en la
   sensacion de velocidad). Enviar el audio a Azure en vivo en vez de grabar-y-subir el
   WAV completo. El resultado apareceria casi al instante de parar, porque el analisis
-  ocurre mientras se lee. Toca `app.js` (capturar y enviar chunks) y `speech.py`
+  ocurre mientras se lee. Toca `app/web/static/` (capturar y enviar chunks) y `app/speech/`
   (reconocimiento desde stream en vez de archivo).
 - [ ] **Textos mas cortos** (sin código). El tiempo de proceso escala con la duracion
   del audio.
 - [ ] **Bajar la prosodia** (fácil, con trade-off). Quitar `enable_prosody_assessment()`
-  en `speech.py` acelera algo, pero se pierde el score de prosodia.
+  en `app/speech/azure_client.py` acelera algo, pero se pierde el score de prosodia.
 - [ ] **Silencio de cierre** (`Speech_SegmentationSilenceTimeoutMs`, hoy 1500 ms).
   Bajarlo reduce la espera final, pero arriesga cortar en pausas largas legitimas.
 

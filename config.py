@@ -46,11 +46,8 @@ class Settings(BaseSettings):
     SPEECH_LANGUAGE: str = "en-US"
 
     # --- Almacenamiento ------------------------------------------------------------------
-    # Legacy (primera version, raiz): SQLite de los intentos de pronunciacion.
-    DB_PATH: str = "attempts.db"
-
-    # Modulo migrado (app/): Postgres. Cadena que consume psycopg. En docker-compose la
-    # inyecta el servicio; en local apunta al Postgres que quieras.
+    # Postgres. Cadena que consume psycopg. En docker-compose la inyecta el servicio; en
+    # local apunta al Postgres que quieras.
     DATABASE_URL: str = "postgresql://review:review@localhost:5432/review_ingles"
 
     PORT: int = 8000

@@ -11,22 +11,25 @@ nuevo. Marca el checkbox cuando lo termines.
 
 ## Contexto del proyecto (para orientar un chat nuevo)
 
-App de práctica de inglés hablado. Dos partes:
+App de práctica de inglés hablado. **La migración a `app/` terminó**: el código legacy de
+la raíz (`main.py`, `conversation.py`, `db.py`, `scoring.py`, `speech.py`, `app.js`,
+`index.html`, `style.css`) ya no existe, y `app/cmd/server.py` es el único entrypoint.
+Estructura actual:
 
-- **Legacy (lo que corre hoy)**: `main.py` (FastAPI) + `conversation.py` (grafo) + `db.py`
-  (SQLite) + `scoring.py` + `speech.py` (Azure). Es lo que está en producción.
-- **Migración en curso (`app/`)**: módulo nuevo y más limpio. Estructura:
-  - `app/conversation/graph.py` — grafo LangGraph: nodos `ask`/`finalize`, `State`,
-    `FeedbackReport` (feedback Markdown libre + `words` + `phrases`), `initial_state`.
-  - `app/conversation/service.py` — `ConversationService` (inyección de dependencias),
-    `build_llm`, `build_service`.
-  - `app/conversation/synthesizer.py` — sintetiza el brief del alumno (formato fijo
-    `### Puntos` + `### Contexto`).
-  - `app/conversation/schemas.py` — validación de entrada con Pydantic (sin `if`s).
-  - `app/conversation/repository.py` + `model.py` — CRUD de `conversation_configs` (SQLite).
-  - `app/storage.py` — `SqliteStorage` (conexiones inyectadas).
-  - `app/cmd/server.py` — servidor nuevo (aún NO es el entrypoint real).
-  - `config.py` — ÚNICO lugar donde se leen variables de entorno.
+- `app/conversation/graph.py` — grafo LangGraph: nodos `ask`/`finalize`, `State`,
+  `FeedbackReport` (feedback Markdown libre + `words` + `phrases`), `initial_state`.
+- `app/conversation/service.py` — `ConversationService` (inyección de dependencias),
+  `build_llm`, `build_service`.
+- `app/conversation/synthesizer.py` — sintetiza el brief del alumno (formato fijo
+  `### Puntos` + `### Contexto`).
+- `app/conversation/schemas.py` — validación de entrada con Pydantic (sin `if`s).
+- `app/conversation/repository.py` + `model.py` — CRUD de `conversation_configs`.
+- `app/reading/` — catálogo de textos de lectura: ingesta, extractos y scheduler.
+- `app/speech/` — Azure Speech: cliente, evaluación y scoring.
+- `app/limits/` — presupuesto en dólares y cuota por usuario.
+- `app/storage.py` — pool de Postgres (conexiones inyectadas).
+- `app/cmd/server.py` — el servidor FastAPI.
+- `config.py` — ÚNICO lugar donde se leen variables de entorno.
 
 **Decisiones de diseño ya tomadas** (no re-litigar):
 - El brief del alumno entra como primer `HumanMessage`; las reglas fijas van en el
@@ -35,12 +38,9 @@ App de práctica de inglés hablado. Dos partes:
   `with_structured_output`).
 - El servicio recibe el grafo por constructor (DI); el grafo se arma una vez al arranque.
 
-**Estado de la migración (pendiente, aparte del aprendizaje):**
-- [ ] Cablear `app/cmd/server.py` como entrypoint real.
-- [ ] Migrar el endpoint `/answer` (depende de `scoring`/`speech`/`db`).
-- [ ] Migrar el CRUD de prompts.
-- [ ] Persistir `practice_phrases` (campo nuevo) cuando se migre el guardado.
-- [ ] Tests del módulo `app/conversation/`.
+**Estado de la migración:** completa. `app/cmd/server.py` es el entrypoint, los endpoints
+de conversación, lectura y feedback viven en `app/`, y el código legacy de la raíz se
+eliminó junto con sus tests.
 
 ---
 

@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Dockerfile multistage para el módulo migrado `app/` (no el código legacy de la
-# raíz). Etapas: base -> development -> test -> production.
+# Dockerfile multistage de la app. Etapas: base -> development -> test -> production.
 #
 #   docker build --target development -t review-ingles:dev .
 #   docker build --target test .          # corre pytest + coverage; falla si rompen
@@ -46,11 +45,14 @@ CMD ["uvicorn", "app.cmd.server:app", "--reload", "--host", "0.0.0.0", "--port",
 # ---------------------------------------------------------------------------
 FROM development AS test
 
-# Solo el test dedicado a app/. NO se copia el conftest.py de la raíz (importa
-# módulos legacy db/scoring que no viven en la imagen).
-COPY test_app_conversation_service.py ./test_app_conversation_service.py
+# La suite completa: no hay más código que el de app/, así que todos los tests
+# aplican a lo que va en la imagen.
+COPY conftest.py ./conftest.py
+COPY test_app_*.py ./
+# Un par de tests comparan el schema del código contra los .sql que inicializan Postgres.
+COPY docker/initdb ./docker/initdb
 
-RUN coverage run --source=app,config -m pytest test_app_conversation_service.py \
+RUN coverage run --source=app,config -m pytest \
     && coverage report -m
 
 # ---------------------------------------------------------------------------
