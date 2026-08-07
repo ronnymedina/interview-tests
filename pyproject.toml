@@ -34,9 +34,38 @@ dev = [
     "mypy>=2.3.0",
     "behave>=1.3.3",
     "pytest-asyncio>=1.0",
+    # Explícito y no transitivo de mutmut: el stage `test` del Dockerfile y el CI
+    # dependen de que exista, así que no puede colarse por la puerta de atrás.
+    "coverage>=7.6",
 ]
 
 # asyncio_mode = "auto" para no decorar cada test asincrono con @pytest.mark.asyncio.
 # Los tests de app/reading lo son porque el modulo corre dentro del event loop.
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Los tests viven en tests/, espejo de la estructura de app/. Fijarlo evita que pytest
+# recorra .venv o docs buscando archivos que parezcan tests.
+testpaths = ["tests"]
+markers = [
+    "integration: necesita infraestructura real (Postgres, Azure, red). Excluido del job de unitarios.",
+]
+
+# --- coverage --------------------------------------------------------------------------
+# `source` incluye config.py porque es el punto único de envs: si deja de estar cubierto,
+# es que algo lo dejó de usar.
+[tool.coverage.run]
+source = ["app", "config"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# 65 % es el piso, no la meta: el total hoy es 69 % contando ramas (73 % contando solo
+# líneas). Lo que falta cubrir son los adaptadores reales (azure_client, sources/engoo,
+# los repository de Postgres), que necesitan tests de integración. Subí este número
+# cuando esos existan.
+fail_under = 65
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

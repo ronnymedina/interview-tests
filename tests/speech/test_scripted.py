@@ -1,19 +1,14 @@
 """Caracteriza assess_scripted con un cliente Azure falso (sin red).
 
-Reusa los helpers de test_app_speech_assessment.py: mismo formato de `state` crudo.
+Reusa los dobles de doubles.py: mismo formato de `state` crudo que usa test_assessment.py.
 """
 
 import pytest
 
-from config import settings
 from app.speech import assessment
 from app.speech.azure_client import AzureSpeechError
-from test_app_speech_assessment import FakeClient, make_state, rec_word
 
-
-@pytest.fixture(autouse=True)
-def _key(monkeypatch):
-    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "test-key")
+from .doubles import FakeClient, make_state, rec_word
 
 
 def test_manda_el_texto_de_referencia_normalizado():
