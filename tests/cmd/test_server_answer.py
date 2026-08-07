@@ -99,12 +99,13 @@ def test_answer_normal_turn_enqueues_audio_and_returns_question(client_with):
 
 def test_answer_final_turn_merges_pronunciation(client_with):
     final = {"final": {"content_feedback": "bien", "practice_words": []}}
-    speech = FakeSpeech(pronunciation={"scores": {"pronunciation": 90.0}, "words": [], "audio_seconds": 6.0})
+    pronunciation = {"scores": {"pronunciation": 90.0}, "words": [], "audio_seconds": 6.0}
+    speech = FakeSpeech(pronunciation=pronunciation)
     client, _, limits, _ = client_with(final, speech=speech)
     resp = _post_answer(client, transcript="that is all")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["final"]["pronunciation"] == {"scores": {"pronunciation": 90.0}, "words": [], "audio_seconds": 6.0}
+    assert body["final"]["pronunciation"] == pronunciation
     assert limits.gemini[0][2] == "feedback"              # usage_event Gemini kind 'feedback'
     assert limits.azure == [("u1", "c1", 6.0)]            # usage_event Azure por duración
 

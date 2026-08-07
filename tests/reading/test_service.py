@@ -6,10 +6,10 @@ que el texto de referencia se recalcule desde la base es lo que permite no cache
 
 import pytest
 
-from config import settings
 from app.reading.model import ReadingText
 from app.reading.service import ReadingError, ReadingService
 from app.speech.assessment import SpeechError
+from config import settings
 
 from .doubles import InMemoryReadingTextStore
 

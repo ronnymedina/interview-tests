@@ -8,15 +8,16 @@ probás en desarrollo es lo que va a pasar en producción.
 """
 
 import asyncio
-import structlog
 from dataclasses import dataclass
 
-from config import settings
+import structlog
+
 from app.logconfig import configure_logging
 from app.reading.repository import PostgresReadingTextStore, ReadingTextStore
 from app.reading.sources import ReadingSource
 from app.reading.sources.engoo import EngooSource
 from app.storage import AsyncPostgresStorage
+from config import settings
 
 logger = structlog.get_logger(__name__)
 

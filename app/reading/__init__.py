@@ -12,4 +12,4 @@ que hace falta, porque `make_excerpt` es determinista.
 from app.reading.model import ReadingText
 from app.reading.service import ReadingError, ReadingService, build_reading_service
 
-__all__ = ["ReadingText", "ReadingError", "ReadingService", "build_reading_service"]
+__all__ = ["ReadingError", "ReadingService", "ReadingText", "build_reading_service"]

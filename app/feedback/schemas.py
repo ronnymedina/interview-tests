@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class FeedbackRequest(BaseModel):
-    """Formulario de feedback: like/dislike, estrellas 1–5, comentario y '¿más funciones?'."""
+    """Formulario de feedback: like/dislike, estrellas 1-5, comentario y '¿más funciones?'."""
 
     liked: bool | None = None  # like / dislike
     rating: int | None = Field(default=None, ge=1, le=5)  # estrellas 1..5

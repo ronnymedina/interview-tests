@@ -2,9 +2,9 @@
 
 import pytest
 
-from config import settings
 from app.speech import assessment
 from app.speech.azure_client import AzureSpeechError
+from config import settings
 
 from .doubles import FakeClient, make_state, rec_word
 

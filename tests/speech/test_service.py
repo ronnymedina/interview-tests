@@ -1,7 +1,7 @@
 """Tests del SpeechService: construcción desde config e integración cola+agregación."""
 
-from config import settings
 from app.speech import SpeechService, build_speech_service
+from config import settings
 
 
 def fake_result(seconds, words):

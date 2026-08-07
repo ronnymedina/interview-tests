@@ -2,10 +2,10 @@
 
 import pytest
 
-from config import settings
 from app.limits.model import DecisionKind
 from app.limits.repository import UsageStore
 from app.limits.service import LimitsService
+from config import settings
 
 
 class FakeUsageStore:
