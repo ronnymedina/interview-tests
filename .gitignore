@@ -4,3 +4,8 @@
 __pycache__/
 .superpowers/
 .gstack/
+.pytest_cache/
+.mypy_cache/
+.hypothesis/
+.coverage
+htmlcov/

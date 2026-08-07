@@ -45,15 +45,16 @@ CMD ["uvicorn", "app.cmd.server:app", "--reload", "--host", "0.0.0.0", "--port",
 # ---------------------------------------------------------------------------
 FROM development AS test
 
-# La suite completa: no hay más código que el de app/, así que todos los tests
-# aplican a lo que va en la imagen.
-COPY conftest.py ./conftest.py
-COPY test_app_*.py ./
+# tests/ es espejo de app/: un subpaquete por módulo, más los conftest y dobles.
+COPY tests ./tests
 # Un par de tests comparan el schema del código contra los .sql que inicializan Postgres.
 COPY docker/initdb ./docker/initdb
 
-RUN coverage run --source=app,config -m pytest \
-    && coverage report -m
+# `-m "not integration"`: este stage no levanta Postgres ni habla con Azure, así que
+# corre solo lo que no necesita infraestructura. La config de coverage (source, branch,
+# fail_under) vive en pyproject.toml, no acá, para que local y CI midan lo mismo.
+RUN coverage run -m pytest -m "not integration" \
+    && coverage report
 
 # ---------------------------------------------------------------------------
 # production — imagen mínima, non-root, sin uv ni deps de dev.

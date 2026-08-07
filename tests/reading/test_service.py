@@ -10,7 +10,8 @@ from config import settings
 from app.reading.model import ReadingText
 from app.reading.service import ReadingError, ReadingService
 from app.speech.assessment import SpeechError
-from test_app_reading_repository import InMemoryReadingTextStore
+
+from .doubles import InMemoryReadingTextStore
 
 BODY = "One two three. Four five six. Seven eight nine. Ten eleven twelve."
 
