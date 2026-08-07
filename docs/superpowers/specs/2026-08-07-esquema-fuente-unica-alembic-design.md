@@ -61,10 +61,12 @@ Se descartaron:
 
 | Archivo | Qué hace |
 |---|---|
-| `alembic.ini` | Config mínima. **Sin** `sqlalchemy.url`: la URL no puede vivir en un archivo versionado |
-| `migrations/env.py` | Toma la URL de `settings.DATABASE_URL` y le reescribe el esquema a `postgresql+psycopg://`. `target_metadata = None` |
+| `alembic.ini` | Config del **CLI** (`uv run alembic revision`). **Sin** `sqlalchemy.url`: la URL no puede vivir en un archivo versionado |
+| `migrations/env.py` | Toma la URL de `settings.sqlalchemy_url`. `target_metadata = None` |
 | `migrations/versions/0001_esquema_inicial.py` | El esquema actual, con los comentarios que hoy están en los `.sql` |
-| `app/cmd/server.py` | El `lifespan` corre el upgrade en vez de `init_schema()` |
+| `config.py` | Suma la propiedad `sqlalchemy_url`, que reescribe el esquema de `DATABASE_URL` a `postgresql+psycopg://` |
+| `app/schema.py` | **Nuevo.** Única puerta a Alembic desde la app: `apply_migrations()`. Arma el `Config` en memoria en vez de leer `alembic.ini`, así el runtime no depende de dónde está ese archivo ni de cuál es el working directory |
+| `app/cmd/server.py` | El `lifespan` llama a `apply_migrations` en vez de a `init_schema()` |
 | `app/storage.py` | Pierde `_SCHEMA` y los dos `init_schema()`; queda solo como fábrica de conexiones |
 
 Se eliminan: `docker/initdb/` completo, su mount en `docker-compose.yml`, el `COPY docker/initdb`
@@ -85,8 +87,10 @@ falta un `alembic stamp head` manual contra producción.
 De la migración `0002` en adelante se escriben normales, sin `IF NOT EXISTS`, porque Alembic ya
 sabe desde dónde arranca.
 
-El `downgrade()` de `0001` queda vacío con un comentario: revertir el esquema inicial es
-`DROP TABLE` de todo, y no hay ningún escenario en que se quiera.
+El `downgrade()` de `0001` lanza `NotImplementedError` con el motivo: revertir el esquema inicial
+es `DROP TABLE` de todo, o sea perder la base entera, y no hay ningún escenario en que sea lo que
+alguien quería. Lanzar en vez de dejarlo vacío evita que un `alembic downgrade base` distraído
+parezca haber funcionado.
 
 ## Limpieza: `conversation_configs` y compañía
 
