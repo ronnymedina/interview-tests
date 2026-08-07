@@ -142,8 +142,6 @@ module = [
     "app.limits.*",
     "app.feedback.*",
     "app.conversation.messages",
-    "app.conversation.model",
-    "app.conversation.repository",
     "app.conversation.schemas",
     "app.reading.model",
     "app.reading.excerpt",

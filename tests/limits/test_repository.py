@@ -1,8 +1,8 @@
 """Verifica de forma estructural (sin BD viva) el adaptador Postgres y el DDL del esquema.
 
-Los repositorios Postgres de app/ son adaptadores delgados y no se testean unitariamente
-(igual que ConversationRepository); acá se comprueba que el adaptador conforma la interfaz
-UsageStore y que el esquema incluye las tablas nuevas.
+Los repositorios Postgres de app/ son adaptadores delgados y no se testean unitariamente;
+acá se comprueba que el adaptador conforma la interfaz UsageStore y que el esquema incluye
+las tablas nuevas.
 """
 
 from app.limits import PostgresUsageStore, build_limits_service
