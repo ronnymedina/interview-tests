@@ -102,6 +102,13 @@ defecto), recortado en limite de oracion. El articulo se guarda completo; el rec
 calcula al servir y se vuelve a calcular al evaluar, a partir del id del texto. Por eso el
 navegador nunca manda el texto de referencia: lo pone el servidor.
 
+Puedes limitar la dificultad con el selector **Nivel maximo** de la pantalla: es un tope, no
+un nivel exacto, asi que pedir 5 puede darte un 4 o un 5. Si no hay ningun texto que cumpla,
+la app lo dice en vez de darte uno mas dificil.
+
+> Esta version funciona solo en **Google Chrome** en computadora: las voces del tutor y el
+> dictado por voz dependen de el.
+
 ## Archivos
 
 | Archivo | Que hace |

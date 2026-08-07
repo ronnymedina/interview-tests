@@ -1,5 +1,7 @@
 # Pulido de lectura, voces compartidas y filtro por nivel — Implementation Plan
 
+> **Estado: ejecutado.** Todas las tareas están implementadas y commiteadas en `feature/reading-fase2`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Arreglar el 🔊 de las palabras en lectura, recuperar los párrafos del texto de referencia, sustituir el selector de voz por tres botones, quitar las menciones al proveedor y permitir pedir un texto de nivel máximo N.
@@ -55,7 +57,7 @@ Hoy la función parte el cuerpo en oraciones y las vuelve a pegar con un espacio
 - Consumes: nada.
 - Produces: `make_excerpt(body: str, max_words: int) -> str` — misma firma que hoy. Nueva garantía: el resultado es siempre un prefijo literal de `body.strip()`.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 Añadir a `test_app_reading_excerpt.py`:
 
@@ -86,12 +88,12 @@ def test_el_extracto_es_un_prefijo_literal_del_cuerpo(body, max_words):
     assert body.strip().startswith(make_excerpt(body, max_words))
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_reading_excerpt.py -q`
 Expected: FAIL — los tres casos concretos devuelven el texto aplanado, y la propiedad falla en cuanto Hypothesis encuentra un cuerpo con espacios repetidos.
 
-- [ ] **Step 3: Reescribir `make_excerpt`**
+- [x] **Step 3: Reescribir `make_excerpt`**
 
 Reemplazar el cuerpo de la función en `app/reading/excerpt.py` (la constante `_SENTENCE_END` y el docstring del módulo se quedan igual):
 
@@ -142,17 +144,17 @@ def make_excerpt(body: str, max_words: int) -> str:
     return text[:end]
 ```
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [x] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_reading_excerpt.py -q`
 Expected: PASS, 12 tests. Los 8 anteriores siguen valiendo — en particular el de determinismo, del que depende que no haga falta caché del extracto.
 
-- [ ] **Step 5: Correr la suite completa**
+- [x] **Step 5: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/reading/excerpt.py test_app_reading_excerpt.py
@@ -175,7 +177,7 @@ git commit -m "fix(reading): el extracto conserva los parrafos del articulo orig
   - `ReadingService.random_excerpt(max_level: int | None = None) -> dict`
   - `InMemoryReadingTextStore.random(max_level=None)` en `test_app_reading_repository.py`, que consumen los tests del servicio.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 En `test_app_reading_repository.py`, cambiar la firma del doble y añadir sus casos.
 
@@ -244,12 +246,12 @@ async def test_sin_textos_del_nivel_pedido_es_503_con_el_motivo():
     assert "nivel 4" in str(exc.value)
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_reading_repository.py test_app_reading_service.py -q`
 Expected: FAIL con `TypeError: random() got an unexpected keyword argument 'max_level'` en el adaptador real, y con el 503 sin el texto esperado.
 
-- [ ] **Step 3: Añadir el filtro al repositorio**
+- [x] **Step 3: Añadir el filtro al repositorio**
 
 En `app/reading/repository.py`, cambiar la firma en el `Protocol`:
 
@@ -292,7 +294,7 @@ Y en `PostgresReadingTextStore`:
         return None if row is None else self._to_stored(row)
 ```
 
-- [ ] **Step 4: Propagar en el servicio**
+- [x] **Step 4: Propagar en el servicio**
 
 En `app/reading/service.py`, reemplazar `random_excerpt`:
 
@@ -328,19 +330,19 @@ En `app/reading/service.py`, reemplazar `random_excerpt`:
         }
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [x] **Step 5: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_reading_repository.py test_app_reading_service.py -q`
 Expected: PASS, 9 + 9 tests.
 
 Si `test_app_reading_service.py` falla porque su helper `a_text` no acepta `level`, revisar su definición: ya tiene `level=5` como parámetro con default, así que `a_text(level=7)` funciona sin tocarla.
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/reading/ test_app_reading_repository.py test_app_reading_service.py
@@ -359,7 +361,7 @@ git commit -m "feat(reading): filtro por nivel maximo en el catalogo"
 - Consumes: `ReadingService.random_excerpt(max_level)` (Task 2); `get_reading_service` y `FakeReadingService` de `test_app_server_reading.py`.
 - Produces: `GET /reading/random?max_level=N`, con `N` entero de 1 a 10.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 En `test_app_server_reading.py`, la clase `FakeReadingService` necesita registrar el parámetro. Reemplazar su `random_excerpt` por:
 
@@ -417,12 +419,12 @@ def test_sin_textos_del_nivel_pedido_es_503(client):
     assert "nivel 4" in res.json()["detail"]
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [x] **Step 2: Correr los tests y verificar que fallan**
 
 Run: `uv run pytest test_app_server_reading.py -q`
 Expected: FAIL — `asked_max_level` queda en `None` cuando se pidió 5, y `max_level=0` devuelve 200 en vez de 422.
 
-- [ ] **Step 3: Añadir el query param**
+- [x] **Step 3: Añadir el query param**
 
 En `app/cmd/server.py`, agregar `Query` al import de `fastapi`:
 
@@ -458,17 +460,17 @@ y dentro, la última llamada:
 
 Las cotas `ge`/`le` son lo que hace que FastAPI devuelva 422 solo con declararlas; no hace falta validar a mano.
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [x] **Step 4: Correr los tests y verificar que pasan**
 
 Run: `uv run pytest test_app_server_reading.py -q`
 Expected: PASS, 16 tests.
 
-- [ ] **Step 5: Correr la suite completa**
+- [x] **Step 5: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/cmd/server.py test_app_server_reading.py
@@ -496,7 +498,7 @@ El cimiento del frontend. Sin esto, la pantalla de lectura no puede pronunciar n
   - `Tts.speak(text, {onstart, onboundary, onend})` — habla con la voz y el ritmo de `Prefs`
   - `Tts.stop()` — corta lo que esté sonando
 
-- [ ] **Step 1: Crear `prefs.js`**
+- [x] **Step 1: Crear `prefs.js`**
 
 ```javascript
 "use strict";
@@ -541,7 +543,7 @@ const Prefs = {
 };
 ```
 
-- [ ] **Step 2: Mover `Tts` a `shared.js`**
+- [x] **Step 2: Mover `Tts` a `shared.js`**
 
 Añadir a `app/web/static/shared.js`, después del bloque del banner:
 
@@ -579,7 +581,7 @@ const Tts = {
 };
 ```
 
-- [ ] **Step 3: Cargar `prefs.js` antes que `shared.js`**
+- [x] **Step 3: Cargar `prefs.js` antes que `shared.js`**
 
 En `app/web/templates/base.html`, sustituir la línea del script por:
 
@@ -589,7 +591,7 @@ En `app/web/templates/base.html`, sustituir la línea del script por:
     <script src="/static/shared.js"></script>
 ```
 
-- [ ] **Step 4: Borrar el `Tts` local de `index.html`**
+- [x] **Step 4: Borrar el `Tts` local de `index.html`**
 
 Este paso va acá y no en la Task 5 para que ningún commit deje la app rota. `index.html` declara su propio `const Tts = {...}` en el mismo ámbito global que `shared.js`, así que si se dejara, Chrome abortaría el script entero con `SyntaxError: Identifier 'Tts' has already been declared`.
 
@@ -597,7 +599,7 @@ En el `<script>` de `app/web/templates/index.html`, **borrar entero** el bloque 
 
 Estado intermedio, esperado y funcional: el `<select id="voice">` sigue en la página y sigue guardando un índice numérico en `pilot_voice`. Como `Prefs.voiceName()` ahora busca por nombre, ese número no coincide con ninguna voz y se usa `Google US English`. O sea: el selector deja de tener efecto hasta que la Task 5 lo sustituya por los botones. Nada se rompe, solo se queda en la voz por defecto.
 
-- [ ] **Step 5: Verificar en Chrome**
+- [x] **Step 5: Verificar en Chrome**
 
 Run: `uv run uvicorn app.cmd.server:app --port 8123` y abrir `http://localhost:8123/` con la consola abierta.
 
@@ -606,12 +608,12 @@ Comprobar:
 - "Probar voz" suena (con la voz por defecto).
 - El slider de ritmo sigue cambiando el número en pantalla.
 
-- [ ] **Step 6: Correr la suite completa**
+- [x] **Step 6: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS. El backend no cambia; esto solo confirma que no se tocó nada de Python.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/web/static/prefs.js app/web/static/shared.js app/web/templates/base.html app/web/templates/index.html
@@ -630,7 +632,7 @@ git commit -m "refactor(web): Tts a shared.js, con las preferencias en prefs.js"
 - Consumes: `Prefs`, `Tts` (Task 4); `VOICES` de `prefs.js`.
 - Produces: nada que otras tareas consuman.
 
-- [ ] **Step 1: Sustituir el selector por los botones**
+- [x] **Step 1: Sustituir el selector por los botones**
 
 En `app/web/templates/index.html`, reemplazar estas cuatro líneas de la sección `#step-voice`:
 
@@ -654,7 +656,7 @@ Y cambiar el aviso de recomendación a requisito, en la línea del `<p class="no
   <p class="notice"><span class="ico">💡</span><span>Esta versión funciona solo en <strong>Google Chrome</strong> en computadora: las voces y el dictado por voz dependen de él.</span></p>
 ```
 
-- [ ] **Step 2: Pintar los botones**
+- [x] **Step 2: Pintar los botones**
 
 El `Tts` local ya se borró en la Task 4. Sustituir el bloque de listeners del paso 1 (el que empieza en `// ---- Paso 1: Voz ----`) por:
 
@@ -707,7 +709,7 @@ $("rate-value").textContent = Prefs.rate().toFixed(2);
 speechSynthesis.onvoiceschanged = () => Tts.load();
 ```
 
-- [ ] **Step 3: Quitar la mención al proveedor**
+- [x] **Step 3: Quitar la mención al proveedor**
 
 En `index.html`, en el bloque `#pron-block`, cambiar:
 
@@ -721,7 +723,7 @@ por:
     <p class="muted">Cada sonido va coloreado por su score. Toca una palabra para ver el detalle, o 🔊 para escucharla.</p>
 ```
 
-- [ ] **Step 4: Estilar los botones**
+- [x] **Step 4: Estilar los botones**
 
 Añadir a `app/web/static/app.css`:
 
@@ -732,7 +734,7 @@ Añadir a `app/web/static/app.css`:
 .voice-picker button.on { background: var(--gold-deep); border-color: var(--gold-deep); color: #fff; }
 ```
 
-- [ ] **Step 5: Verificar en Chrome**
+- [x] **Step 5: Verificar en Chrome**
 
 Run: `uv run uvicorn app.cmd.server:app --port 8123` y abrir `http://localhost:8123/`.
 
@@ -745,7 +747,7 @@ Comprobar, uno por uno:
 - "Probar voz" suena con la voz elegida.
 - En la pantalla final ya no aparece la palabra "Azure".
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/web/templates/index.html app/web/static/app.css
@@ -765,7 +767,7 @@ git commit -m "feat(web): tres botones de voz y sin menciones al proveedor"
 - Consumes: `Prefs`, `Tts` (Task 4); `GET /reading/random?max_level=N` (Task 3); de `shared.js`: `$`, `Api`, `createRecorder`, `showBanner`, `renderWord`, `scoreClass`, `formatScore`.
 - Produces: nada que otras tareas consuman.
 
-- [ ] **Step 1: Reescribir la plantilla**
+- [x] **Step 1: Reescribir la plantilla**
 
 Sustituir el bloque `content` de `app/web/templates/reading.html` por:
 
@@ -816,7 +818,7 @@ Sustituir el bloque `content` de `app/web/templates/reading.html` por:
 {% endblock %}
 ```
 
-- [ ] **Step 2: Actualizar `reading.js`**
+- [x] **Step 2: Actualizar `reading.js`**
 
 En `app/web/static/reading.js`, sustituir la función `loadText` por:
 
@@ -875,7 +877,7 @@ function renderExcerpt(text) {
 }
 ```
 
-- [ ] **Step 3: Añadir el botón de escuchar**
+- [x] **Step 3: Añadir el botón de escuchar**
 
 Añadir a `reading.js`, antes de los listeners del final:
 
@@ -899,7 +901,7 @@ function toggleListen() {
 }
 ```
 
-- [ ] **Step 4: Arreglar el 🔊 de cada palabra y cortar la voz al grabar**
+- [x] **Step 4: Arreglar el 🔊 de cada palabra y cortar la voz al grabar**
 
 En `renderReview`, sustituir la línea del callback vacío:
 
@@ -948,7 +950,7 @@ por:
 
 En `toggleRecording`, añadir `stopListening();` justo después de `clearError();`, para que la voz se calle al abrir el micrófono.
 
-- [ ] **Step 5: Conectar el selector de nivel y los listeners**
+- [x] **Step 5: Conectar el selector de nivel y los listeners**
 
 Sustituir las tres últimas líneas del archivo:
 
@@ -975,7 +977,7 @@ $("max-level").value = String(Prefs.maxLevel());
 loadText();
 ```
 
-- [ ] **Step 6: Estilos**
+- [x] **Step 6: Estilos**
 
 Añadir a `app/web/static/app.css`:
 
@@ -999,7 +1001,7 @@ Y ajustar la regla del badge, que tenía un margen pensado para ir dentro de una
 .badge { margin-left: 0; }
 ```
 
-- [ ] **Step 7: Verificar en Chrome**
+- [x] **Step 7: Verificar en Chrome**
 
 Run: `uv run uvicorn app.cmd.server:app --port 8123` y abrir `http://localhost:8123/reading`.
 
@@ -1015,12 +1017,12 @@ Comprobar, uno por uno:
 - Tras evaluar, el panel izquierdo sigue teniendo párrafos separados y las omisiones tachadas.
 - En ninguna pantalla aparece la palabra "Azure".
 
-- [ ] **Step 8: Correr la suite completa**
+- [x] **Step 8: Correr la suite completa**
 
 Run: `uv run pytest -q`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app/web/
@@ -1035,7 +1037,7 @@ git commit -m "feat(web): panel de lectura con parrafos, escuchar y filtro por n
 - Modify: `README.md`
 - Modify: `docs/superpowers/specs/2026-08-06-practica-lectura-fase2-design.md`
 
-- [ ] **Step 1: Actualizar el README**
+- [x] **Step 1: Actualizar el README**
 
 En la sección "Practica de lectura (modulo `app/`)", añadir después del párrafo del extracto:
 
@@ -1048,7 +1050,7 @@ la app lo dice en vez de darte uno mas dificil.
 > dictado por voz dependen de el.
 ```
 
-- [ ] **Step 2: Anotar el cambio de `make_excerpt` en el spec de la fase 2**
+- [x] **Step 2: Anotar el cambio de `make_excerpt` en el spec de la fase 2**
 
 En `docs/superpowers/specs/2026-08-06-practica-lectura-fase2-design.md`, en la sección "Arquitectura", bajo la fila de `excerpt.py` de la tabla, añadir:
 
@@ -1059,7 +1061,7 @@ determinista, así que la decisión de no cachear el extracto se mantiene intact
 [2026-08-06-pulido-lectura-y-voces-design.md](2026-08-06-pulido-lectura-y-voces-design.md).
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add README.md docs/

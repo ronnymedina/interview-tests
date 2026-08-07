@@ -105,6 +105,11 @@ Se completa `app/reading/`:
 pasar `max_words`; si la primera oración ya excede el límite, corta en la última palabra
 completa que quepa. Nunca parte una palabra por la mitad.
 
+**Actualización (pulido posterior):** `make_excerpt` devuelve un prefijo literal del cuerpo en
+vez de un texto reconstruido, para conservar los saltos de párrafo del artículo. Sigue siendo
+determinista, así que la decisión de no cachear el extracto se mantiene intacta. Ver
+[2026-08-06-pulido-lectura-y-voces-design.md](2026-08-06-pulido-lectura-y-voces-design.md).
+
 En `app/speech/assessment.py` se agrega `assess_scripted(wav_path, reference_text)`, migrado
 de `speech.py` del legacy. Es la misma llamada que ya existe más
 `PronunciationAssessmentConfig(reference_text=...)` y `enable_miscue`.
