@@ -18,15 +18,6 @@ from psycopg.rows import DictRow, dict_row
 # sentencia por llamada a execute).
 _SCHEMA: tuple[LiteralString, ...] = (
     """
-    CREATE TABLE IF NOT EXISTS conversation_configs (
-        id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at   TEXT NOT NULL,
-        updated_at   TEXT NOT NULL,
-        name         TEXT NOT NULL,
-        user_context TEXT NOT NULL
-    );
-    """,
-    """
     CREATE TABLE IF NOT EXISTS usage_events (
         id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
         created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
