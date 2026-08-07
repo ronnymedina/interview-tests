@@ -25,8 +25,10 @@ class FakeReadingService:
         self._assess = assess_result or {"scores": {}, "words": [], "reference_text": "x"}
         self._error = error
         self.assessed = None
+        self.asked_max_level = None
 
-    async def random_excerpt(self):
+    async def random_excerpt(self, max_level=None):
+        self.asked_max_level = max_level
         if self._error:
             raise self._error
         return self._random
@@ -218,3 +220,46 @@ def test_assess_ignora_un_reference_text_enviado_por_el_cliente(client):
     assert res.status_code == 200
     # El servicio solo recibió el id y el audio; el texto extra se descartó.
     assert service.assessed == (7, b"fake wav bytes")
+
+
+# --- filtro por nivel máximo ------------------------------------------------------------
+
+def test_random_pasa_el_nivel_maximo_al_servicio(client):
+    service = FakeReadingService()
+    app.dependency_overrides[get_reading_service] = lambda: service
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    client.get("/reading/random?max_level=5", headers=HEADERS)
+
+    assert service.asked_max_level == 5
+
+
+def test_random_sin_nivel_no_filtra(client):
+    service = FakeReadingService()
+    app.dependency_overrides[get_reading_service] = lambda: service
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    client.get("/reading/random", headers=HEADERS)
+
+    assert service.asked_max_level is None
+
+
+def test_un_nivel_maximo_invalido_es_422(client):
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService()
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    assert client.get("/reading/random?max_level=0", headers=HEADERS).status_code == 422
+    assert client.get("/reading/random?max_level=99", headers=HEADERS).status_code == 422
+    assert client.get("/reading/random?max_level=x", headers=HEADERS).status_code == 422
+
+
+def test_sin_textos_del_nivel_pedido_es_503(client):
+    app.dependency_overrides[get_reading_service] = lambda: FakeReadingService(
+        error=ReadingError("No hay textos de nivel 4 o menos", status=503)
+    )
+    app.dependency_overrides[get_limits_service] = lambda: FakeLimits()
+
+    res = client.get("/reading/random?max_level=4", headers=HEADERS)
+
+    assert res.status_code == 503
+    assert "nivel 4" in res.json()["detail"]
