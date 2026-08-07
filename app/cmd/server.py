@@ -21,7 +21,17 @@ from pathlib import Path
 
 import structlog
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -339,6 +349,12 @@ def conversation_answer(
 
 @app.get("/reading/random")
 async def reading_random(
+    max_level: int | None = Query(
+        default=None,
+        ge=1,
+        le=10,
+        description="Tope de dificultad. Sin él, cualquier texto del catálogo.",
+    ),
     user_id: str = Depends(get_user_id),
     reading: ReadingService = Depends(get_reading_service),
     limits: LimitsService = Depends(get_limits_service),
@@ -362,7 +378,7 @@ async def reading_random(
         raise HTTPException(status_code=429, detail={"reason": decision.reason})
 
     try:
-        return await reading.random_excerpt()
+        return await reading.random_excerpt(max_level)
     except ReadingError as error:
         raise HTTPException(status_code=error.status, detail=str(error))
 
