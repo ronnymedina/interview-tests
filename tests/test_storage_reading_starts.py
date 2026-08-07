@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.storage import _SCHEMA
 
-_SQL_FILE = Path(__file__).parent / "docker" / "initdb" / "05-reading-starts.sql"
+_SQL_FILE = Path(__file__).resolve().parents[1] / "docker" / "initdb" / "05-reading-starts.sql"
 
 
 def _statement():

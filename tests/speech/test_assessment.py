@@ -1,50 +1,12 @@
 """Caracteriza assess_unscripted del módulo app/speech con un cliente Azure falso (sin red)."""
 
-import azure.cognitiveservices.speech as speechsdk
 import pytest
 
 from config import settings
 from app.speech import assessment
 from app.speech.azure_client import AzureSpeechError
 
-
-def rec_word(word, accuracy, error="None"):
-    """Un objeto-palabra del SDK como los que devuelve el reconocimiento real."""
-    return speechsdk.PronunciationAssessmentWordResult(
-        {"Word": word, "PronunciationAssessment": {"ErrorType": error, "AccuracyScore": accuracy}}
-    )
-
-
-def make_state(words, texts, *, durations=None, start=1000, end=1_000_000, prosody=None):
-    return {
-        "words": words,
-        "prosody_scores": prosody or [],
-        "durations": durations or [],
-        "texts": texts,
-        "start_offset": start,
-        "end_offset": end,
-    }
-
-
-class FakeClient:
-    """Doble de AzureSpeechClient: devuelve un state fijo o lanza un error."""
-
-    def __init__(self, state=None, error=None):
-        self._state = state
-        self._error = error
-        self.called_with = None
-
-    def recognize(self, wav_path, reference_text):
-        self.called_with = (wav_path, reference_text)
-        if self._error:
-            raise self._error
-        return self._state
-
-
-@pytest.fixture(autouse=True)
-def _key(monkeypatch):
-    """assess_unscripted exige una key; en los tests basta una cualquiera."""
-    monkeypatch.setattr(settings, "AZURE_SPEECH_KEY", "test-key")
+from .doubles import FakeClient, make_state, rec_word
 
 
 def test_unscripted_passes_empty_reference():

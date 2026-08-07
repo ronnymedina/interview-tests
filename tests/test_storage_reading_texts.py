@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app.storage import _SCHEMA
 
-_INITDB_SQL = Path(__file__).parent / "docker" / "initdb" / "04-reading-texts.sql"
+_INITDB_SQL = Path(__file__).resolve().parents[1] / "docker" / "initdb" / "04-reading-texts.sql"
 
 # Columnas que la fase 2 necesita para ingerir y servir textos.
 _COLUMNS = (
