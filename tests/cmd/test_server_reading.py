@@ -3,6 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.cmd import server
 from app.cmd.server import app, get_limits_service, get_reading_service
 from app.limits.model import Decision, DecisionKind
 from app.reading.service import ReadingError
@@ -58,7 +59,10 @@ class FakeLimits:
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    """Usa `with` porque estos tests ejercitan el lifespan; sin Postgres real, hay que
+    neutralizar la migracion (si no, el arranque se cae, ver tests/cmd/test_lifespan.py)."""
+    monkeypatch.setattr(server, "apply_migrations", lambda: None)
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
