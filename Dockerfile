@@ -26,6 +26,10 @@ RUN uv sync --frozen --no-install-project --no-dev
 COPY app ./app
 COPY config.py ./config.py
 
+# Las migraciones van a produccion: el lifespan corre `upgrade head` al arrancar.
+COPY migrations ./migrations
+COPY alembic.ini ./alembic.ini
+
 ENV PATH="/app/.venv/bin:$PATH"
 
 # ---------------------------------------------------------------------------
@@ -47,8 +51,6 @@ FROM development AS test
 
 # tests/ es espejo de app/: un subpaquete por módulo, más los conftest y dobles.
 COPY tests ./tests
-# Un par de tests comparan el schema del código contra los .sql que inicializan Postgres.
-COPY docker/initdb ./docker/initdb
 
 # `-m "not integration"`: este stage no levanta Postgres ni habla con Azure, así que
 # corre solo lo que no necesita infraestructura. La config de coverage (source, branch,
@@ -68,6 +70,8 @@ RUN useradd --create-home --uid 10001 appuser
 COPY --from=base /app/.venv ./.venv
 COPY --from=base /app/app ./app
 COPY --from=base /app/config.py ./config.py
+COPY --from=base /app/migrations ./migrations
+COPY --from=base /app/alembic.ini ./alembic.ini
 
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser

@@ -70,8 +70,8 @@ class PostgresReadingTextStore:
     """Adaptador Postgres de ReadingTextStore.
 
     Sigue el patrón del resto de los repositorios: abre una conexión por operación vía
-    `storage.connect()` y no crea la tabla (de eso se encarga `init_schema()` o el init del
-    contenedor). `created_at` lo pone Postgres por DEFAULT.
+    `storage.connect()` y no crea la tabla (de eso se encarga Alembic). `created_at` lo
+    pone Postgres por DEFAULT.
     """
 
     # Las columnas que hidratan un StoredReadingText. En una constante para que `random` y

@@ -17,8 +17,6 @@ services:
       - "5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # El .sql crea la tabla al inicializar el volumen por primera vez.
-      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U review -d interview_ingles"]
       interval: 5s
