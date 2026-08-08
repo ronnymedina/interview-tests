@@ -45,6 +45,7 @@ from app.ratelimit import IpRateLimiter, client_ip
 from app.reading import ReadingError, ReadingService, build_reading_service
 from app.reading.ingest import build_default_ingest
 from app.reading.scheduler import ingest_loop
+from app.schema import apply_migrations
 from app.speech import SpeechService, build_speech_service
 from app.storage import AsyncPostgresStorage, PostgresStorage
 from config import settings
@@ -122,19 +123,20 @@ _RATE_SCOPES = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Al arrancar intenta crear la tabla si falta (uso standalone); si Postgres está caído,
-    lo registra y sigue: en docker-compose la tabla ya viene del init.sql.
+    """Al arrancar aplica las migraciones pendientes. Si fallan, el arranque se cae: es el
+    mismo camino en Compose, en Railway y corriendo uvicorn sin Docker.
 
-    Además levanta la ingesta de textos de lectura como tarea de fondo. Va acá y no en un
+    Ademas levanta la ingesta de textos de lectura como tarea de fondo. Va aca y no en un
     proceso aparte porque no necesita uno: es un `sleep` largo entre corridas. Se cancela al
     apagar, y el `await` posterior espera a que termine de verdad."""
     # Va acá y no al importar el módulo: uvicorn configura su propio logging al arrancar, y
     # si lo hiciéramos antes nos lo pisaría.
     configure_logging()
-    try:
-        _storage.init_schema()
-    except Exception:
-        logger.exception("No se pudo inicializar el esquema de Postgres; ¿está la BD arriba?")
+    # Sin try/except a proposito: si la migracion falla, el arranque se cae. Un servidor
+    # arriba con el esquema desactualizado responde 500 en todo lo que toque Postgres, y
+    # en un deploy es preferible que quede rojo y siga corriendo la version anterior.
+    # `to_thread` porque Alembic es sincronico y esto corre dentro del event loop.
+    await asyncio.to_thread(apply_migrations)
 
     source, store = build_default_ingest()
     ingest_task = asyncio.create_task(ingest_loop(source, store))
