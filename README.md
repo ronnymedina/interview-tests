@@ -155,7 +155,7 @@ proyecto.
 | Ruta | Que hace |
 |---|---|
 | `app/cmd/server.py` | Servidor FastAPI: rutas, middlewares (request id, rate limit) y wiring de dependencias |
-| `app/conversation/` | Grafo LangGraph del tutor, prompts, repositorio y servicio |
+| `app/conversation/` | Grafo LangGraph del tutor, prompts y servicio |
 | `app/reading/` | Catalogo de textos: ingesta, extractos, scheduler y servicio |
 | `app/speech/` | Azure Speech: cliente, evaluacion (con y sin texto de referencia) y scoring |
 | `app/limits/` | Presupuesto en dolares y cuota por usuario |
