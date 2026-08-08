@@ -156,6 +156,7 @@ module = [
     "app.reading.scheduler",
     "app.reading.sources.*",
     "app.logconfig",
+    "app.schema",
     "config",
 ]
 disallow_untyped_defs = true

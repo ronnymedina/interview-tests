@@ -3,83 +3,16 @@
 Envuelve la creación de conexiones para que los repositorios reciban esto por
 inyección de dependencia y no sepan dónde ni cómo se abre la base. Se instancia
 una vez (en `main`, con `settings.DATABASE_URL`) y se inyecta a cada repositorio.
+
+No define ni crea el esquema: de eso se encarga Alembic (ver `app/schema.py`).
 """
 
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import LiteralString, cast
+from typing import cast
 
 import psycopg
 from psycopg.rows import DictRow, dict_row
-
-# DDL de las tablas de app/. Es la misma definición que usan los scripts de init del
-# contenedor Postgres (docker/initdb/*.sql); se expone acá para poder crear el esquema
-# desde código en un entorno standalone. Una sentencia por elemento (psycopg ejecuta una
-# sentencia por llamada a execute).
-_SCHEMA: tuple[LiteralString, ...] = (
-    """
-    CREATE TABLE IF NOT EXISTS usage_events (
-        id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-        user_id         TEXT NOT NULL,
-        conversation_id TEXT NOT NULL,
-        provider        TEXT NOT NULL,
-        kind            TEXT NOT NULL,
-        input_tokens    INTEGER NOT NULL DEFAULT 0,
-        output_tokens   INTEGER NOT NULL DEFAULT 0,
-        audio_seconds   REAL NOT NULL DEFAULT 0,
-        cost_usd        NUMERIC(10,6) NOT NULL DEFAULT 0
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS conversation_starts (
-        id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-        user_id         TEXT NOT NULL,
-        conversation_id TEXT NOT NULL
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS pilot_feedback (
-        id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-        user_id       TEXT NOT NULL,
-        liked         BOOLEAN,
-        rating        INTEGER,
-        comment       TEXT NOT NULL DEFAULT '',
-        wants_more    BOOLEAN,
-        suggestions   TEXT NOT NULL DEFAULT ''
-    );
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS reading_texts (
-        id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-        source       TEXT NOT NULL,
-        source_url   TEXT NOT NULL UNIQUE,
-        title        TEXT NOT NULL,
-        level        INTEGER,
-        category     TEXT NOT NULL DEFAULT '',
-        published_at TEXT NOT NULL DEFAULT '',
-        body         TEXT NOT NULL
-    );
-    """,
-    """
-    CREATE INDEX IF NOT EXISTS reading_texts_level_idx ON reading_texts (level);
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS reading_starts (
-        id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        user_id    TEXT NOT NULL,
-        reading_id INTEGER NOT NULL
-    );
-    """,
-    """
-    CREATE INDEX IF NOT EXISTS reading_starts_user_idx ON reading_starts (user_id);
-    """,
-)
 
 
 class PostgresStorage:
@@ -108,12 +41,6 @@ class PostgresStorage:
             raise
         finally:
             conn.close()
-
-    def init_schema(self) -> None:
-        """Crea las tablas de app/ si no existen (uso standalone, sin compose)."""
-        with self.connect() as conn:
-            for statement in _SCHEMA:
-                conn.execute(statement)
 
 
 class AsyncPostgresStorage:
@@ -153,9 +80,3 @@ class AsyncPostgresStorage:
             raise
         finally:
             await conn.close()
-
-    async def init_schema(self) -> None:
-        """Crea las tablas de app/ si no existen (uso standalone, sin compose)."""
-        async with self.connect() as conn:
-            for statement in _SCHEMA:
-                await conn.execute(statement)
