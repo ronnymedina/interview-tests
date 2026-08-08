@@ -58,7 +58,7 @@ def test_level_admite_null(sql):
 def test_reading_starts_no_guarda_contenido(sql):
     """La cuota se cuenta sin persistir ni el audio ni el resultado del assessment."""
     inicio = sql.index("CREATE TABLE IF NOT EXISTS reading_starts")
-    ddl = sql[inicio : sql.index(")", inicio)].lower()
+    ddl = sql[inicio : sql.index(");", inicio)].lower()
     for prohibido in ("body", "excerpt", "audio", "scores", "words"):
         assert prohibido not in ddl
 
