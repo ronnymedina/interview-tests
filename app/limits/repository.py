@@ -58,9 +58,8 @@ class UsageStore(Protocol):
 class PostgresUsageStore:
     """Adaptador Postgres de UsageStore. Aísla el SQL; recibe el almacenamiento inyectado.
 
-    Abre una conexión nueva por operación vía `storage.connect()` y no crea la tabla (eso lo
-    hace `PostgresStorage.init_schema()` o el init del contenedor). `created_at` lo pone
-    Postgres por DEFAULT now().
+    Abre una conexión nueva por operación vía `storage.connect()` y no crea la tabla (de eso
+    se encarga Alembic). `created_at` lo pone Postgres por DEFAULT now().
     """
 
     def __init__(self, storage: PostgresStorage) -> None:

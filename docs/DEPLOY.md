@@ -11,7 +11,7 @@ para poner la app en un proveedor.
 |---|---|---|
 | `base` | Deps de **produccion** (`uv sync --no-dev`), `app/` y `config.py` | Capa cacheada; se reconstruye solo si cambian `pyproject.toml` o `uv.lock` |
 | `development` | `base` + el grupo `dev` (pytest, coverage, mypy…) | Hot reload. Es el que usa `docker-compose.yml` |
-| `test` | `development` + `tests/` + `docker/initdb/` | Corre pytest con coverage. Falla el build si rompen los tests o si baja la cobertura |
+| `test` | `development` + `tests/` | Corre pytest con coverage. Falla el build si rompen los tests o si baja la cobertura |
 | `production` | Solo el venv de prod, `app/` y `config.py` | La imagen que se despliega. Sin `uv`, sin deps de dev, sin tests |
 
 ```bash
@@ -58,13 +58,13 @@ reinstalan en cada run.
 
 ## Desplegar
 
-1. **Aprovisiona un Postgres** y aplica los scripts de [`docker/initdb/`](../docker/initdb/)
-   **en orden numerico**. En Compose se ejecutan solos al crear el volumen por primera vez,
-   pero en un Postgres gestionado hay que correrlos a mano una vez:
+1. **Aprovisiona un Postgres** y pasa su cadena de conexion en `DATABASE_URL`. No hay que
+   crear el esquema a mano: la app corre las migraciones de Alembic al arrancar, tanto en
+   una base vacia como en una que ya tiene datos.
 
-   ```bash
-   for f in docker/initdb/*.sql; do psql "$DATABASE_URL" -f "$f"; done
-   ```
+   Si la migracion falla, el contenedor no arranca y el deploy queda rojo — a proposito,
+   para que el proveedor siga sirviendo la version anterior en vez de una app con el
+   esquema desactualizado.
 
 2. **Carga las variables de entorno** en el panel del servicio. Como minimo:
    `DATABASE_URL`, `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`, `GEMINI_API_KEY`.

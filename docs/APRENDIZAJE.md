@@ -23,13 +23,13 @@ Estructura actual:
 - `app/conversation/synthesizer.py` — sintetiza el brief del alumno (formato fijo
   `### Puntos` + `### Contexto`).
 - `app/conversation/schemas.py` — validación de entrada con Pydantic (sin `if`s).
-- `app/conversation/repository.py` + `model.py` — CRUD de `conversation_configs`.
 - `app/reading/` — catálogo de textos de lectura: ingesta, extractos y scheduler.
 - `app/speech/` — Azure Speech: cliente, evaluación y scoring.
 - `app/limits/` — presupuesto en dólares y cuota por usuario.
 - `app/storage.py` — pool de Postgres (conexiones inyectadas).
 - `app/cmd/server.py` — el servidor FastAPI.
 - `config.py` — ÚNICO lugar donde se leen variables de entorno.
+- `migrations/` — el esquema de Postgres, en migraciones de Alembic escritas a mano.
 
 **Decisiones de diseño ya tomadas** (no re-litigar):
 - El brief del alumno entra como primer `HumanMessage`; las reglas fijas van en el
@@ -66,8 +66,9 @@ eliminó junto con sus tests.
 - **Qué es**: hoy el grafo usa `InMemorySaver` → el estado de cada conversación vive en
   memoria y se pierde al reiniciar o entre workers. Un checkpointer persistente guarda el
   estado (mensajes, `thread_id`) en una BD real.
-- **Ojo (confusión común)**: el SQLite actual (`SqliteStorage`) es solo para las **configs**
-  (`conversation_configs`), NO para el estado del grafo. Son dos persistencias distintas.
+- **Ojo (confusión común)**: el Postgres del proyecto guarda uso, cuotas, feedback y el
+  catalogo de lectura, NO el estado del grafo. Son dos persistencias distintas, y el
+  checkpointer necesita la suya.
 - **Dónde en el proyecto**: `app/conversation/graph.py` → `build_graph(..., checkpointer)`;
   se inyecta desde `build_service` en `service.py`.
 - **Qué hacer**:
