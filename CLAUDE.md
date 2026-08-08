@@ -28,6 +28,9 @@ uv run ruff check .                           # lint (bloquea el CI)
 uv run ruff check . --fix
 uv run mypy app config.py                     # tipos (bloquea el CI)
 
+uv run alembic revision -m "descripcion"      # nueva migracion (se escribe a mano)
+uv run alembic current                        # version del esquema en la base
+
 uv run python -m app.reading.ingest           # fuerza la ingesta del catálogo de lectura
 ```
 
@@ -54,6 +57,10 @@ reproduce el job de tests localmente con el mismo Python y el mismo `uv.lock`.
 - Los tests marcados `@pytest.mark.integration` necesitan Postgres/Azure/red y quedan fuera
   del stage `test`.
 - `behave` y `mutmut` están en dev deps sin usar todavía, a propósito: se van a adoptar.
+- **El esquema vive solo en `migrations/`.** La app corre `upgrade head` al arrancar
+  (`app/schema.py`, llamado desde el `lifespan`), y si falla el arranque se cae a propósito.
+  Las migraciones se escriben a mano con `op.execute()`; nunca `--autogenerate`, porque no
+  hay modelos de SQLAlchemy.
 
 ## Arquitectura
 
@@ -80,7 +87,7 @@ inyectan dobles en memoria (`tests/*/doubles.py`) en vez de tocar infraestructur
 | `app/speech/` | `azure_client.py` habla con el SDK; `assessment.py` tiene los dos modos (unscripted para la conversación, scripted contra referencia para la lectura); `scoring.py` la cola diferida |
 | `app/limits/` | Presupuesto en dólares (diario y total) y cuota por usuario. Precedencia: total → diario → cuota |
 | `app/web/` | Plantillas Jinja2 y JS plano. `shared.js` es transversal (identidad, cliente API, grabación WAV, TTS) y no referencia ids de una página concreta; lo propio de cada modalidad va en su archivo |
-| `app/storage.py` | `PostgresStorage` (sync) y `AsyncPostgresStorage` conviven; el DDL de `_SCHEMA` duplica `docker/initdb/*.sql` y hay tests que los comparan |
+| `app/storage.py` | `PostgresStorage` (sync) y `AsyncPostgresStorage` conviven. No define el esquema: eso es de Alembic, ver `app/schema.py` y `migrations/` |
 
 **Decisiones que no hay que re-litigar:**
 

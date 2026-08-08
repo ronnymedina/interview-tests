@@ -59,8 +59,7 @@ cada variable esta en [docs/ENVS.md](docs/ENVS.md); todas se leen en un unico lu
 
 ### Con Docker (recomendado)
 
-Levanta Postgres + la app con hot reload, y aplica los scripts de `docker/initdb/` la
-primera vez:
+Levanta Postgres + la app con hot reload. La app aplica las migraciones sola al arrancar:
 
 ```bash
 docker compose up --build
@@ -79,6 +78,21 @@ uv run uvicorn app.cmd.server:app --reload
 `uv run` ejecuta siempre dentro de el.
 
 En ambos casos, abri <http://127.0.0.1:8000> **en Chrome**.
+
+### El esquema de la base
+
+Lo aplica la app al arrancar, con Alembic. No hay que correr nada a mano ni en local ni al
+desplegar, y funciona igual sobre una base vacia que sobre una que ya tiene datos.
+
+Para cambiarlo, se crea una migracion nueva:
+
+```bash
+uv run alembic revision -m "agrega la columna X"   # crea el archivo en migrations/versions/
+uv run alembic current                             # que version tiene la base
+```
+
+Se escriben a mano con `op.execute("ALTER TABLE ...")`. **No** se usa `--autogenerate`: el
+proyecto no tiene modelos de SQLAlchemy de donde derivar el esquema.
 
 ### Poblar el catalogo de lectura
 
@@ -150,7 +164,7 @@ proyecto.
 | `app/storage.py`, `app/logconfig.py`, `app/ratelimit.py` | Pool de Postgres, structlog y rate limiter |
 | `config.py` | **Unico** lugar del proyecto que lee variables de entorno |
 | `tests/` | Espejo de `app/` |
-| `docker/initdb/` | Scripts SQL que crean el esquema |
+| `migrations/` | Migraciones de Alembic: la unica fuente del esquema |
 
 ## Documentacion
 
