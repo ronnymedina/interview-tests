@@ -1,4 +1,4 @@
-"""Valida el esquema de feedback (regla rating 1..5, opcionalidad) y el DDL de pilot_feedback."""
+"""Valida el esquema de feedback: regla rating 1..5 y opcionalidad de los campos."""
 
 import pytest
 from pydantic import ValidationError
@@ -37,9 +37,3 @@ def test_rating_above_5_rejected():
 def test_rating_none_is_allowed():
     # rating es opcional: no darlo (o darlo None) es válido.
     assert FeedbackRequest(liked=False).rating is None
-
-
-def test_schema_includes_pilot_feedback_table():
-    from app.storage import _SCHEMA
-
-    assert "pilot_feedback" in " ".join(_SCHEMA)

@@ -108,6 +108,9 @@ ignore = [
 # graph.py son los prompts del tutor, no código: cortar una línea para que entre en 100
 # columnas cambia el texto que recibe el LLM. El límite de ancho no aplica.
 "app/conversation/graph.py" = ["E501"]
+# La migración inicial transcribe el SQL tal cual estaba en app/storage.py y docker/initdb,
+# comentarios incluidos: recortarlos para entrar en 100 columnas cambiaría el contenido.
+"migrations/versions/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "config"]
