@@ -28,7 +28,7 @@ uv run ruff check .                           # lint (bloquea el CI)
 uv run ruff check . --fix
 uv run mypy app config.py                     # tipos (bloquea el CI)
 
-uv run alembic revision -m "descripcion"      # nueva migracion (se escribe a mano)
+uv run alembic revision -m "descripcion"      # nueva migracion numerada (necesita Postgres arriba)
 uv run alembic current                        # version del esquema en la base
 
 uv run python -m app.reading.ingest           # fuerza la ingesta del catálogo de lectura
