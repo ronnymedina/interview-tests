@@ -32,3 +32,24 @@ def test_the_prompt_keeps_its_contract_with_the_rest_of_the_code(fragment):
 def test_a_missing_prompt_fails_loudly():
     with pytest.raises(FileNotFoundError):
         prompts.load("v1_no_existe")
+
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "### Points to evaluate",  # the two input sections the review node builds
+        "### Transcript",
+        "'feedback'",  # the FeedbackReport fields it must fill
+        "'words'",
+        "'phrases'",
+    ],
+)
+def test_the_reviewer_prompt_keeps_its_contract(fragment):
+    assert fragment in prompts.load(prompts.REVIEWER_GENERAL)
+
+
+def test_the_reviewer_prompt_is_not_the_tutor():
+    """The whole point of the split: no tutor role, no 'do not correct' rule leaking in."""
+    text = prompts.load(prompts.REVIEWER_GENERAL)
+    assert "You are an English tutor" not in text
+    assert "Do NOT give corrections" not in text
