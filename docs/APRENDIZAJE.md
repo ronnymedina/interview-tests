@@ -18,8 +18,11 @@ Estructura actual:
 
 - `app/conversation/graph.py` — grafo LangGraph: nodos `ask`/`review`, `State`,
   `FeedbackReport` (feedback Markdown libre + `words` + `phrases`), `initial_state`.
-- `app/conversation/service.py` — `ConversationService` (inyección de dependencias),
-  `build_llm`, `build_service`.
+- `app/conversation/service.py` — `ConversationService` (inyección de dependencias).
+- `app/conversation/llm.py` — `build_chat_model`: el único punto que traduce `settings` a
+  una instancia concreta de proveedor.
+- `app/conversation/__init__.py` — `build_conversation_graph_service`: el composition root
+  que arma los tres chat models y el grafo.
 - `app/conversation/synthesizer.py` — sintetiza el brief del alumno (formato fijo
   `### Puntos` + `### Contexto`).
 - `app/conversation/schemas.py` — validación de entrada con Pydantic (sin `if`s).
@@ -54,7 +57,7 @@ eliminó junto con sus tests.
   `from langchain.chat_models import init_chat_model` para elegir el modelo por string
   (`"google_genai:gemini-2.5-flash"`) o `model_provider`. Cambiar de proveedor = cambiar
   config, no código.
-- **Dónde en el proyecto**: `app/conversation/service.py` → función `build_llm`.
+- **Dónde en el proyecto**: `app/conversation/llm.py` → función `build_chat_model`.
 - **Qué hacer**:
   - Reemplazar la instanciación manual por `init_chat_model`.
   - Centralizar el string del modelo/proveedor en `config.py` (respetar la convención de
@@ -72,7 +75,7 @@ eliminó junto con sus tests.
   catalogo de lectura, NO el estado del grafo. Son dos persistencias distintas, y el
   checkpointer necesita la suya.
 - **Dónde en el proyecto**: `app/conversation/graph.py` → `build_graph(..., checkpointer)`;
-  se inyecta desde `build_service` en `service.py`.
+  se inyecta desde `build_conversation_graph_service` en `__init__.py`.
 - **Qué hacer**:
   - Paso intermedio: `SqliteSaver` (reusa el SQLite que ya tienes).
   - Producción: `PostgresSaver` (para varios workers / autoescalado).

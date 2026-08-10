@@ -73,7 +73,7 @@ def _build_conversation_service() -> ConversationService | None:
     problema real de configuración.
     """
     try:
-        return conversation.build_service()
+        return conversation.build_conversation_graph_service()
     except Exception:
         logger.exception("No se pudo construir el servicio de conversación; queda deshabilitado.")
         return None
