@@ -7,6 +7,7 @@ construye la clase directamente con dobles del grafo/sintetizador.
 """
 
 import uuid
+from typing import Any
 
 from langchain_core.messages import HumanMessage
 
@@ -94,11 +95,13 @@ class ConversationService:
         }
 
 
-def build_llm():
-    """Construye el LLM leyendo la configuración. Falla claro si falta la clave.
+def build_llm(model: str = "", temperature: float | None = None):
+    """Construye un LLM leyendo la configuración. Falla claro si falta la clave.
 
-    Usa `init_chat_model`: el proveedor y el modelo salen de `settings.CHAT_MODEL`
-    (formato "proveedor:modelo"), así cambiar de proveedor es cambiar config, no código.
+    Usa `init_chat_model`: el proveedor y el modelo salen de un string "proveedor:modelo",
+    así cambiar de proveedor es cambiar config, no código. Sin argumentos usa
+    `settings.CHAT_MODEL` y deja la temperatura por default del proveedor, que es el
+    comportamiento histórico del que depende el sintetizador.
     """
     if not settings.GEMINI_API_KEY:
         raise ConversationError(
@@ -108,7 +111,10 @@ def build_llm():
         )
     from langchain.chat_models import init_chat_model
 
-    return init_chat_model(settings.CHAT_MODEL, api_key=settings.GEMINI_API_KEY)
+    # No se pasa `temperature=None`: algunos proveedores lo mandan literal en el request en
+    # vez de tratarlo como "sin especificar". Si no se pide, la clave ni existe.
+    kwargs: dict[str, Any] = {} if temperature is None else {"temperature": temperature}
+    return init_chat_model(model or settings.CHAT_MODEL, api_key=settings.GEMINI_API_KEY, **kwargs)
 
 
 def build_service(checkpointer=None) -> ConversationService:

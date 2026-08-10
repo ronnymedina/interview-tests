@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     # proveedor (p. ej. "openai:gpt-5-nano") es cambiar esta variable, no el codigo.
     CHAT_MODEL: str = "google_genai:gemini-2.5-flash"
 
+    # Temperatura del tutor. Alta a proposito: preguntas variadas y naturales, que no
+    # repitan el mismo molde turno tras turno.
+    CHAT_TEMPERATURE: float = 1.0
+
+    # El revisor puede correr en otro modelo que el tutor. Vacio = usa CHAT_MODEL, asi que
+    # por default el costo por token no cambia. Subirlo a un modelo mas potente es una
+    # linea del .env, no un cambio de codigo.
+    REVIEW_CHAT_MODEL: str = ""
+
+    # Temperatura del revisor. Baja a proposito: la evaluacion tiene que ser estable y
+    # reproducible, no creativa.
+    REVIEW_TEMPERATURE: float = 0.2
+
     # LangSmith (observabilidad). Estas variables NO se declaran como campos a proposito:
     # LangChain las consume directamente del entorno, y el load_dotenv() de arriba ya las
     # carga. Se listan para que este archivo siga siendo el mapa unico de la configuracion:
