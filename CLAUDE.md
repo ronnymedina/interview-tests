@@ -86,7 +86,9 @@ inyectan dobles en memoria (`tests/*/doubles.py`) en vez de tocar infraestructur
 
 | Módulo | Rol |
 |---|---|
-| `app/conversation/` | Grafo LangGraph (`graph.py`: nodos `ask`/`review`, checkpointer en memoria por `thread_id`), `synthesizer.py` que normaliza el contexto libre del alumno al brief fijo, `service.py`, `schemas.py` (validación de entrada), `messages.py` y `prompts/` (los prompts en archivos `v<N>_<nombre>.md`, cargados con `prompts.load`) |
+| `app/conversation/` | Grafo LangGraph (`graph.py`: nodos `ask`/`review`, checkpointer en memoria por `thread_id`), `synthesizer.py` que normaliza el contexto libre del alumno al brief fijo, `service.py`,
+`llm.py` (`build_chat_model`, único punto que traduce `settings` a una instancia de
+proveedor; el composition root `build_conversation_graph_service` vive en `__init__.py`), `schemas.py` (validación de entrada), `messages.py` y `prompts/` (los prompts en archivos `v<N>_<nombre>.md`, cargados con `prompts.load`) |
 | `app/reading/` | Catálogo de textos: `sources/` obtiene → `ingest` orquesta → `repository` persiste; `scheduler` repite cada N horas dentro del servidor; `excerpt.py` recorta |
 | `app/speech/` | `azure_client.py` habla con el SDK; `assessment.py` tiene los dos modos (unscripted para la conversación, scripted contra referencia para la lectura); `scoring.py` la cola diferida |
 | `app/limits/` | Presupuesto en dólares (diario y total) y cuota por usuario. Precedencia: total → diario → cuota |

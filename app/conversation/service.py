@@ -1,19 +1,17 @@
 """Orquestación de la conversación como servicio con inyección de dependencias.
 
 `ConversationService` recibe ya armados el grafo y el sintetizador; no sabe cómo se
-construyen ni de qué proveedor de LLM salen. La construcción (una sola vez) vive en el
-punto de arranque, que llama a `build_service` e inyecta el resultado. Para tests, se
-construye la clase directamente con dobles del grafo/sintetizador.
+construyen ni de qué proveedor de LLM salen. La construcción (una sola vez) vive en
+`build_conversation_graph_service`, en el `__init__.py` del módulo, y el punto de arranque
+inyecta el resultado. Para tests, se construye la clase directamente con dobles del
+grafo/sintetizador.
 """
 
 import uuid
-from typing import Any
 
 from langchain_core.messages import HumanMessage
 
-from config import settings
-
-from .graph import build_graph, initial_state
+from .graph import initial_state
 from .synthesizer import Synthesizer
 
 
@@ -93,43 +91,3 @@ class ConversationService:
             "question_number": result["questions_asked"],
             "total_questions": result["max_questions"],
         }
-
-
-def build_llm(model: str = "", temperature: float | None = None):
-    """Construye un LLM leyendo la configuración. Falla claro si falta la clave.
-
-    Usa `init_chat_model`: el proveedor y el modelo salen de un string "proveedor:modelo",
-    así cambiar de proveedor es cambiar config, no código. Sin argumentos usa
-    `settings.CHAT_MODEL` y deja la temperatura por default del proveedor, que es el
-    comportamiento histórico del que depende el sintetizador.
-    """
-    if not settings.GEMINI_API_KEY:
-        raise ConversationError(
-            "Falta GEMINI_API_KEY en el archivo .env. Copia .env.example a .env "
-            "y pon tu clave de Gemini.",
-            status=500,
-        )
-    from langchain.chat_models import init_chat_model
-
-    # No se pasa `temperature=None`: algunos proveedores lo mandan literal en el request en
-    # vez de tratarlo como "sin especificar". Si no se pide, la clave ni existe.
-    kwargs: dict[str, Any] = {} if temperature is None else {"temperature": temperature}
-    return init_chat_model(model or settings.CHAT_MODEL, api_key=settings.GEMINI_API_KEY, **kwargs)
-
-
-def build_service(checkpointer=None) -> ConversationService:
-    """Composition root: arma los tres LLM → grafo → sintetizador y devuelve el servicio.
-
-    Se llama UNA vez en el arranque. Tres roles, tres instancias: el sintetizador conserva
-    el comportamiento histórico (`build_llm()` pelado), el tutor corre caliente y el revisor
-    frío. `REVIEW_CHAT_MODEL` vacío cae a `CHAT_MODEL`, así que por default los tres apuntan
-    al mismo modelo y el costo por token no cambia.
-    """
-    synthesizer_llm = build_llm()
-    tutor_llm = build_llm(settings.CHAT_MODEL, settings.CHAT_TEMPERATURE)
-    review_llm = build_llm(
-        settings.REVIEW_CHAT_MODEL or settings.CHAT_MODEL, settings.REVIEW_TEMPERATURE
-    )
-    return ConversationService(
-        build_graph(tutor_llm, review_llm, checkpointer), Synthesizer(synthesizer_llm)
-    )
