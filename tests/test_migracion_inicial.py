@@ -80,8 +80,14 @@ def test_es_la_primera_revision(sql):
 def test_upgrade_head_crea_las_tablas():
     """Corre la migracion de verdad contra el Postgres de settings.DATABASE_URL.
 
-    Es lo unico que prueba que el SQL es valido: los tests de arriba leen texto. Queda
-    fuera del stage `test` del Dockerfile, que no levanta servicios.
+    Es lo unico que prueba que el SQL es valido: los tests de arriba leen texto de la
+    revision 0001 nomas, asi que una 0002 que revirtiera una decision de diseño (por
+    ejemplo un `DROP CONSTRAINT reading_texts_source_url_key`) los dejaria en verde. Esta
+    prueba, en cambio, mira el esquema RESULTANTE en information_schema/pg_indexes
+    despues de `upgrade head`, asi que vale para cualquier revision futura y no solo para
+    la inicial.
+
+    Queda fuera del stage `test` del Dockerfile, que no levanta servicios.
     """
     import psycopg
 
@@ -102,4 +108,53 @@ def test_upgrade_head_crea_las_tablas():
         filas = conn.execute(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
         ).fetchall()
-    assert esperadas <= {fila[0] for fila in filas}
+        assert esperadas <= {fila[0] for fila in filas}
+
+        # source_url tiene que seguir siendo UNIQUE: es lo que hace idempotente la
+        # ingesta (el UPSERT del scraper depende de este constraint).
+        unicidad = conn.execute(
+            """
+            SELECT 1
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.constraint_column_usage ccu
+                ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.table_name = 'reading_texts'
+                AND tc.constraint_type = 'UNIQUE'
+                AND ccu.column_name = 'source_url'
+            """
+        ).fetchone()
+        assert unicidad is not None
+
+        # level tiene que admitir NULL: "no se el nivel" y "nivel 0" son cosas distintas.
+        nullability = conn.execute(
+            """
+            SELECT is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'reading_texts' AND column_name = 'level'
+            """
+        ).fetchone()
+        assert nullability == ("YES",)
+
+        # Sin estos indices, filtrar por nivel y contar la cuota escanean la tabla entera.
+        indices = conn.execute(
+            """
+            SELECT indexname FROM pg_indexes
+            WHERE indexname IN ('reading_texts_level_idx', 'reading_starts_user_idx')
+            """
+        ).fetchall()
+        assert {fila[0] for fila in indices} == {
+            "reading_texts_level_idx",
+            "reading_starts_user_idx",
+        }
+
+        # reading_starts cuenta la cuota sin persistir contenido: ni audio, ni el texto,
+        # ni el resultado del assessment.
+        columnas = conn.execute(
+            """
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'reading_starts'
+            """
+        ).fetchall()
+        nombres_columnas = {fila[0] for fila in columnas}
+        for prohibido in ("body", "excerpt", "audio", "scores", "words"):
+            assert prohibido not in nombres_columnas

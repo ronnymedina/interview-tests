@@ -33,22 +33,33 @@ docker build --target production -t review-ingles:prod .  # imagen final
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) corre en push y PR contra `main` y
-`develop`, en tres jobs:
+`develop`, en cuatro jobs:
 
-1. **Lint (ruff)**, **Tipos (mypy)** y **Tests unitarios y coverage**, en paralelo. Los tres
-   bloquean.
-2. **Imagen de produccion** — solo si los tres anteriores pasaron. Nunca se publica una
+1. **Lint (ruff)**, **Tipos (mypy)**, **Tests unitarios y coverage** y **Tests de
+   integracion**, en paralelo. Los cuatro bloquean.
+2. **Imagen de produccion** — solo si los cuatro anteriores pasaron. Nunca se publica una
    imagen verde sobre una suite roja.
 
 Van en paralelo a proposito: un error de estilo no debe tapar un test roto, ni al reves.
 
-El job de tests no instala nada por su cuenta: construye el stage `test` del Dockerfile. Por
-eso un fallo remoto se reproduce local con un solo comando (`docker build --target test .`)
-en vez de tener que adivinar en que se diferencia el runner de tu maquina.
+El job de tests unitarios no instala nada por su cuenta: construye el stage `test` del
+Dockerfile. Por eso un fallo remoto se reproduce local con un solo comando
+(`docker build --target test .`) en vez de tener que adivinar en que se diferencia el
+runner de tu maquina.
 
 Lint y tipos son la excepcion: corren `ruff` y `mypy` directo, sin Docker, porque tardan
 segundos y no necesitan el entorno completo. Local es `uv run ruff check .` y
 `uv run mypy app config.py`.
+
+**Tests de integracion.** El job de tests unitarios corre dentro del stage `test`, que no
+levanta infraestructura: todo lo que prueba sobre las migraciones lee el TEXTO del archivo
+(`assert "..." in sql`). El unico test que ejecuta SQL de verdad
+(`test_upgrade_head_crea_las_tablas`, marcado `@pytest.mark.integration`) queda afuera de
+ese stage y corre en un job aparte, que levanta un Postgres real como `services:` del job y
+corre `uv run pytest -m integration` directo (no via Docker: el stage `test` no tiene forma
+de hablarle a un servicio hermano del runner). Bloquea `build` igual que los demas: el
+lifespan aplica las migraciones sin try/except a proposito, y esta es la unica compuerta de
+CI para esa politica antes de que una migracion rota llegue a Railway.
 
 Si la cobertura baja del **68 %** (`fail_under` en `pyproject.toml`), `coverage report` sale
 con codigo != 0 y el build falla.
