@@ -10,6 +10,12 @@ from config import settings
 
 def gemini_cost_usd(input_tokens: int, output_tokens: int) -> float:
     """Costo en USD de una llamada a Gemini según tokens de entrada y salida."""
+    # NOTE: asume UN solo modelo. Desde que el revisor puede correr en otro
+    # (`REVIEW_CHAT_MODEL`), si ese modelo es mas caro que el del tutor este calculo
+    # SUBESTIMA: los tokens del revisor se cobran a la tarifa del tutor. Arreglarlo es
+    # cambiar el par de precios por un mapa modelo -> (precio_in, precio_out) y que
+    # `_gemini_tokens` en server.py devuelva el desglose en vez de agregar;
+    # `callback.usage_metadata` ya viene indexado por nombre de modelo.
     cost = (
         input_tokens / 1000 * settings.GEMINI_PRICE_INPUT_PER_1K
         + output_tokens / 1000 * settings.GEMINI_PRICE_OUTPUT_PER_1K

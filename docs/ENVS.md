@@ -52,7 +52,7 @@ modalidades) y la **cuota por usuario** (`X-User-Id`, contadores separados por m
 | `USER_READING_QUOTA` | `10` | Lecturas evaluadas por usuario. Contador aparte a proposito: leer no gasta tus conversaciones. El presupuesto en dolares si es compartido. |
 | `MAX_ANSWER_SECONDS` | `30` | Duracion maxima del audio de una respuesta. |
 | `MAX_QUESTIONS` | `5` | Turnos de una conversacion. |
-| `GEMINI_PRICE_INPUT_PER_1K` | `0.0003` | Tarifa por cada 1000 tokens de entrada. Aproximacion del piloto: el costo se ajusta cambiando la env, no el codigo. |
+| `GEMINI_PRICE_INPUT_PER_1K` | `0.0003` | Tarifa por cada 1000 tokens de entrada. Aproximacion del piloto: el costo se ajusta cambiando la env, no el codigo. Se aplica a **todos** los modelos por igual, asi que si `REVIEW_CHAT_MODEL` apunta a uno mas caro, el gasto queda subestimado. |
 | `GEMINI_PRICE_OUTPUT_PER_1K` | `0.0025` | Idem para los tokens de salida. |
 | `AZURE_SPEECH_PRICE_PER_SECOND` | `0.000278` | Azure Pronunciation Assessment se cobra por duracion de audio (~$1/hora). |
 

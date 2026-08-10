@@ -1,6 +1,6 @@
 """Sintetizador del brief de sesión.
 
-Toma lo que el alumno configuró (texto libre: qué quiere practicar, su CV, un post, etc.)
+Toma lo que el alumno configuró (texto libre: qué quiere practicar y el material que pegó)
 y lo reescribe SIEMPRE al mismo molde de dos secciones, que luego entra como primer
 `HumanMessage` de la conversación (ver `graph.initial_state`):
 
@@ -27,8 +27,9 @@ _INSTRUCTION = (
     "### Puntos que quiero estudiar y sobre los que debo recibir feedback\n"
     "- (one bullet per English aspect the learner wants to work on; keep them in Spanish)\n\n"
     "### Contexto\n"
-    "(the material to ground the conversation: CV, a post, their experience. PRESERVE EVERY "
-    "concrete detail — never shorten or summarize away, never invent facts not in the input.)\n\n"
+    "(whatever material the learner pasted to ground the conversation — a CV, a post, a "
+    "project description, notes. PRESERVE EVERY concrete detail — never shorten or "
+    "summarize away, never invent facts not in the input.)\n\n"
     "Output only the brief, with no preamble, no title and no quotes. Learner's input:\n\n"
 )
 
