@@ -5,7 +5,8 @@
 # ejecutan exactamente el mismo entorno (mismo Python, mismo uv.lock), y un fallo en CI se
 # reproduce local con un solo comando.
 #
-# Orden: lint, tipos y tests+coverage en paralelo (los tres bloquean) -> imagen de producción.
+# Orden: lint, tipos, tests+coverage e integración en paralelo (los cuatro bloquean) ->
+# imagen de producción.
 
 name: CI
 
@@ -81,13 +82,63 @@ jobs:
           cache-to: type=gha,mode=max
 
   # -------------------------------------------------------------------------------------
+  # Tests de integración. El job `test` de arriba corre dentro del stage `test` del
+  # Dockerfile, que no levanta infraestructura: sus 162 tests hacen `assert "..." in sql`
+  # sobre el TEXTO de las migraciones. El único que ejecuta SQL de verdad es
+  # `test_upgrade_head_crea_las_tablas` (marcado `integration`), y por eso queda excluido
+  # de ese stage. Sin este job, un `op.execute("ALTER TABEL ...")` con un typo pasa ruff,
+  # pasa mypy, pasa los 162 tests de texto, la imagen se construye verde, y el contenedor
+  # entra en crash-loop en Railway: el lifespan corre las migraciones sin try/except a
+  # propósito (si fallan, el arranque se cae). Esta política necesita su propia compuerta
+  # en CI, no solo en producción.
+  #
+  # Corre directo con `uv run` (como `types`), no construyendo el Dockerfile: el stage
+  # `test` de la imagen no tiene forma de hablarle a un servicio hermano del runner, y acá
+  # sí hace falta un Postgres real.
+  # -------------------------------------------------------------------------------------
+  integration:
+    name: Tests de integración (Postgres real)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: review
+          POSTGRES_PASSWORD: review
+          POSTGRES_DB: review_ingles
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U review -d review_ingles"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      # Puerto 5432 directo, el default de config.py: el 5434 del docker-compose local es
+      # solo para no chocar con otros Postgres del developer, y ese problema no existe acá.
+      DATABASE_URL: postgresql://review:review@localhost:5432/review_ingles
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - run: uv run pytest -m integration
+
+  # -------------------------------------------------------------------------------------
   # La imagen que realmente se despliega. Se construye solo si los tests pasaron, para no
-  # publicar nunca una imagen verde sobre una suite roja.
+  # publicar nunca una imagen verde sobre una suite roja. `integration` bloquea igual que
+  # los demás: dejar pasar una migración rota a producción es justo lo que la política de
+  # "si el arranque falla, no arranca" vino a prevenir, y ese gate tiene que estar antes
+  # del deploy, no ser informativo después.
   # -------------------------------------------------------------------------------------
   build:
     name: Imagen de producción
     runs-on: ubuntu-latest
-    needs: [lint, types, test]
+    needs: [lint, types, test, integration]
     steps:
       - uses: actions/checkout@v4
 
