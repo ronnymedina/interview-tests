@@ -118,9 +118,18 @@ def build_llm(model: str = "", temperature: float | None = None):
 
 
 def build_service(checkpointer=None) -> ConversationService:
-    """Composition root: arma LLM → grafo → sintetizador y devuelve el servicio listo.
+    """Composition root: arma los tres LLM → grafo → sintetizador y devuelve el servicio.
 
-    Se llama UNA vez en el arranque; el mismo LLM alimenta al grafo y al sintetizador.
+    Se llama UNA vez en el arranque. Tres roles, tres instancias: el sintetizador conserva
+    el comportamiento histórico (`build_llm()` pelado), el tutor corre caliente y el revisor
+    frío. `REVIEW_CHAT_MODEL` vacío cae a `CHAT_MODEL`, así que por default los tres apuntan
+    al mismo modelo y el costo por token no cambia.
     """
-    llm = build_llm()
-    return ConversationService(build_graph(llm, checkpointer), Synthesizer(llm))
+    synthesizer_llm = build_llm()
+    tutor_llm = build_llm(settings.CHAT_MODEL, settings.CHAT_TEMPERATURE)
+    review_llm = build_llm(
+        settings.REVIEW_CHAT_MODEL or settings.CHAT_MODEL, settings.REVIEW_TEMPERATURE
+    )
+    return ConversationService(
+        build_graph(tutor_llm, review_llm, checkpointer), Synthesizer(synthesizer_llm)
+    )
