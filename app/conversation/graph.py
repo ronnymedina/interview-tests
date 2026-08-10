@@ -10,15 +10,14 @@ from pydantic import BaseModel, Field
 from . import prompts
 from .messages import content_text
 
-# Guardarraíles fijos del tutor, versionados en `prompts/v1_tutor_system.md`. Van como
-# SystemMessage y tienen precedencia sobre el brief del alumno. El brief entra como PRIMER
-# HumanMessage, así que `contents` de Gemini nunca queda vacío y no hace falta un empujón
-# artificial.
+# Fixed tutor guardrails, versioned in `prompts/v1_tutor_system.md`. They go in as a
+# SystemMessage and take precedence over the student's brief. The brief enters as the FIRST
+# HumanMessage, so Gemini's `contents` is never empty and no artificial kickoff is needed.
 _SYSTEM_PROMPT = prompts.load(prompts.TUTOR_SYSTEM)
 
-# Instrucción del feedback final. Define solo el COMPORTAMIENTO y el formato de salida.
-# 'feedback' es TEXTO LIBRE en Markdown (no una lista fija); QUÉ evaluar sale de la sección
-# "### Puntos" del brief. Las palabras y las frases sí van estructuradas aparte.
+# Final feedback instruction. It defines only the BEHAVIOUR and the output format.
+# 'feedback' is FREE-FORM Markdown text (not a fixed checklist); WHAT to evaluate comes from
+# the "### Puntos" section of the brief. Words and phrases are structured separately.
 _FEEDBACK_INSTRUCTION = (
     "The practice is over. Produce a FeedbackReport.\n"
     "- 'feedback': free-form feedback in Spanish, written in Markdown (use headings and bullets "
@@ -64,24 +63,24 @@ class FeedbackReport(BaseModel):
 
 
 class State(TypedDict):
-    """Estado mutable que viaja por el grafo, persistido por el checkpointer y por conversación."""
+    """Mutable state that travels through the graph, persisted per conversation by the checkpointer."""
 
     messages: Annotated[list[AnyMessage], add_messages]
-    brief: str  # brief del alumno ya sintetizado (### Puntos + ### Contexto)
+    brief: str  # the student's brief, already synthesized (### Puntos + ### Contexto)
     max_questions: int
     questions_asked: int
-    content_feedback: str  # feedback libre en Markdown
+    content_feedback: str  # free-form Markdown feedback
     practice_words: list[dict]
     practice_phrases: list[dict]
     finished: bool
 
 
 def initial_state(brief: str, max_questions: int) -> State:
-    """Estado inicial para arrancar una conversación.
+    """Initial state to start a conversation.
 
-    Siembra el historial con las reglas fijas (SystemMessage) y el brief del alumno como
-    PRIMER HumanMessage. Así `contents` de Gemini ya trae un turno de usuario real y el
-    nodo `ask` puede pedir la primera pregunta sin ningún empujón artificial.
+    Seeds the history with the fixed rules (SystemMessage) and the student's brief as the
+    FIRST HumanMessage. That way Gemini's `contents` already carries a real user turn and the
+    `ask` node can request the first question without any artificial kickoff.
     """
     return {
         "messages": [SystemMessage(_SYSTEM_PROMPT), HumanMessage(brief)],
@@ -96,20 +95,20 @@ def initial_state(brief: str, max_questions: int) -> State:
 
 
 def build_graph(llm, checkpointer: BaseCheckpointSaver | None = None):
-    """Arma y compila el grafo: nodos `ask`/`review`, ruteo por función y checkpointer.
+    """Build and compile the graph: `ask`/`review` nodes, function-based routing, checkpointer.
 
-    En cada invocación corre exactamente un nodo (ask o review) y termina; el estado
-    persiste por `thread_id` entre invocaciones gracias al checkpointer.
+    Each invocation runs exactly one node (ask or review) and ends; the state persists per
+    `thread_id` across invocations thanks to the checkpointer.
     """
 
     def route(state: State) -> str:
-        # Desde START: a `review` si ya se alcanzó el tope de preguntas, si no a `ask`.
+        # From START: go to `review` once the question cap is reached, otherwise to `ask`.
         return "review" if state["questions_asked"] >= state["max_questions"] else "ask"
 
 
     def ask(state: State) -> dict:
-        # El historial ya arranca con SystemMessage + el brief como HumanMessage (ver
-        # `initial_state`), así que siempre hay un turno de usuario y no hace falta empujón.
+        # The history already starts with SystemMessage + the brief as a HumanMessage (see
+        # `initial_state`), so there is always a user turn and no kickoff is needed.
         question = content_text(llm.invoke(state["messages"]))
         return {
             "messages": [AIMessage(question)],
@@ -118,7 +117,7 @@ def build_graph(llm, checkpointer: BaseCheckpointSaver | None = None):
 
 
     def review(state: State) -> dict:
-        # Revisor de la conversación: cierra la práctica y emite el FeedbackReport.
+        # Conversation reviewer: closes the practice session and emits the FeedbackReport.
         report = llm.with_structured_output(FeedbackReport).invoke(
             state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)]
         )

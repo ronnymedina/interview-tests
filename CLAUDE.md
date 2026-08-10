@@ -4,12 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Idioma
 
-El proyecto está escrito en español: docstrings, comentarios, mensajes de commit y
-documentación. Los identificadores y los prompts al LLM van en inglés. Mantené esa
-convención al escribir código nuevo.
+**El código va en inglés**: comentarios, docstrings, identificadores, nombres de test y los
+prompts al LLM. **Los mensajes de commit y las descripciones de los pull requests también
+van en inglés**, siguiendo conventional commits con scope:
+`feat(reading): filter the catalog by maximum level`.
 
-Los mensajes de commit siguen conventional commits con scope y descripción en español:
-`feat(reading): filtro por nivel maximo en el catalogo`.
+**La documentación va en español**: este archivo, `README.md` y todo `docs/`.
+
+Esta convención cambió: buena parte del código todavía tiene comentarios y docstrings en
+español. La migración es orgánica — cuando toques un archivo por otro motivo, pasá a inglés
+lo que estés modificando. No hace falta traducir un archivo entero solo por pasar por ahí.
 
 ## Comandos
 
