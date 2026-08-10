@@ -39,6 +39,11 @@ services:
       # imagen se preserva con un volumen anónimo (no lo pisa el bind del host).
       - ./app:/app/app
       - ./config.py:/app/config.py
+      # Sin este mount, una migracion nueva queda horneada en la imagen: --reload reinicia
+      # el proceso pero el lifespan corre `upgrade head` contra la copia vieja de
+      # /app/migrations, en silencio (es un no-op, no un error) y el endpoint que use la
+      # columna nueva revienta con UndefinedColumn.
+      - ./migrations:/app/migrations
       - /app/.venv
     depends_on:
       db:
