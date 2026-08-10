@@ -35,6 +35,9 @@ el error dice exactamente que campo esta mal y por que.
 | `PORT` | `8000` | Puerto del servidor. En Railway lo inyecta la plataforma en runtime y el `CMD` del Dockerfile lo expande. |
 | `SPEECH_LANGUAGE` | `en-US` | Idioma que se evalua. `en-US` es el que tiene soporte mas completo (silabas, prosodia). |
 | `CHAT_MODEL` | `google_genai:gemini-2.5-flash` | Modelo del chat en formato `proveedor:modelo` que consume `init_chat_model`. Cambiar de proveedor (p. ej. `openai:gpt-5-nano`) es cambiar esta variable, no el codigo. |
+| `CHAT_TEMPERATURE` | `1.0` | Temperatura del tutor. Alta a proposito: preguntas variadas y naturales. |
+| `REVIEW_CHAT_MODEL` | `""` (vacio) | Modelo del revisor, mismo formato `proveedor:modelo`. Vacio = usa `CHAT_MODEL`, asi que por default el costo por token no cambia. |
+| `REVIEW_TEMPERATURE` | `0.2` | Temperatura del revisor. Baja a proposito: la evaluacion tiene que ser estable y reproducible. |
 
 ## Presupuesto y cuotas
 
