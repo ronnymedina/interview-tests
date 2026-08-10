@@ -33,6 +33,22 @@ _INSTRUCTION = (
 )
 
 
+# Encabezado que abre la segunda sección del brief. Es el corte entre "qué evaluar" y
+# "de qué conversar", y lo produce siempre `_INSTRUCTION`.
+_CONTEXT_MARKER = "### Contexto"
+
+
+def focus_points(session_brief: str) -> str:
+    """Devuelve la sección `### Puntos` del brief: el foco de evaluación, sin el material.
+
+    Si el brief no trae el marcador `### Contexto` (un LLM que no respetó el molde), cae al
+    brief completo. Degradar a "el revisor ve más contexto del necesario" es preferible a
+    dejarlo sin ningún criterio de evaluación.
+    """
+    head, marker, _ = session_brief.partition(_CONTEXT_MARKER)
+    return head.strip() if marker else session_brief.strip()
+
+
 class Synthesizer:
     """Convierte texto libre del alumno en un brief con formato fijo, usando un LLM.
 
