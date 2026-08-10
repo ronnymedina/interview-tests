@@ -85,6 +85,25 @@ reinstalan en cada run.
 
 3. **Despliega** el `Dockerfile` con `--target production`.
 
+## Deuda pendiente: `conversation_configs`
+
+La tabla `conversation_configs` quedo obsoleta cuando se elimino su CRUD (nadie la usaba) y
+la migracion inicial de Alembic (`migrations/versions/0001_esquema_inicial.py`) no la crea
+a proposito. No hay, ni va a haber, una migracion que la borre: es una decision de diseño,
+no un olvido.
+
+Efecto practico: una base nueva no la tiene, pero las bases que ya existian en Railway
+antes de esta migracion todavia la arrastran, porque Alembic solo crea lo que falta y
+nunca borra lo que no menciona. Hay que eliminarla **a mano, una sola vez**, en cada base
+que ya existia:
+
+```sql
+DROP TABLE IF EXISTS conversation_configs;
+```
+
+Mientras eso no se haga, produccion y una base nueva difieren en una tabla que ninguna
+migracion describe — justo lo que esta unificacion del esquema vino a evitar.
+
 ## Antes de exponerlo en internet
 
 El servidor **no tiene autenticacion**. La identidad es un `X-User-Id` que manda el
