@@ -27,10 +27,28 @@ def test_build_chat_model_uses_configured_model_and_key(monkeypatch):
 
 
 def test_build_chat_model_sin_temperatura_no_la_fija(monkeypatch):
-    """Llamado sin argumentos se comporta como hoy: la temperatura la pone el proveedor."""
+    """Llamado sin argumentos NO le pasa `temperature` al proveedor: la pone él.
+
+    Se espía el kwarg en vez de mirar `llm.temperature` porque el default depende del
+    modelo (`gemini-2.5-flash` arranca en 0.7 y `gemini-3.1-flash-lite` en None), y un
+    test atado a ese valor pasa o falla segun el CHAT_MODEL del entorno.
+    """
+    import langchain.chat_models as chat_models
+
+    recibido = {}
+
+    def fake_init_chat_model(model, **kwargs):
+        recibido["model"] = model
+        recibido["kwargs"] = kwargs
+        return object()
+
+    monkeypatch.setattr(chat_models, "init_chat_model", fake_init_chat_model)
     monkeypatch.setattr(settings, "GEMINI_API_KEY", "fake-key-for-construction")
-    llm = build_chat_model()
-    assert llm.temperature is None
+
+    build_chat_model()
+
+    assert "temperature" not in recibido["kwargs"]
+    assert recibido["model"] == settings.CHAT_MODEL
 
 
 def test_build_chat_model_fija_la_temperatura_cuando_se_la_dan(monkeypatch):
