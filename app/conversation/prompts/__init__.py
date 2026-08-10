@@ -16,6 +16,11 @@ _DIR = Path(__file__).parent
 #: student's brief.
 TUTOR_SYSTEM = "v1_tutor_system"
 
+#: System prompt del revisor general. Define por sí solo qué evaluar; los `### Puntos` del
+#: alumno lo refinan. Agregar un revisor especializado (`v1_reviewer_past_tense`) es agregar
+#: un archivo y una constante acá.
+REVIEWER_GENERAL = "v1_reviewer_general"
+
 
 def load(name: str) -> str:
     """Return the text of ``prompts/<name>.md``.
