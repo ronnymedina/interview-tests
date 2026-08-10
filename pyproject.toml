@@ -149,6 +149,7 @@ module = [
     "app.limits.*",
     "app.feedback.*",
     "app.conversation.messages",
+    "app.conversation.prompts",
     "app.conversation.schemas",
     "app.reading.model",
     "app.reading.excerpt",
