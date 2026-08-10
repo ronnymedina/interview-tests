@@ -16,13 +16,15 @@ la raíz (`main.py`, `conversation.py`, `db.py`, `scoring.py`, `speech.py`, `app
 `index.html`, `style.css`) ya no existe, y `app/cmd/server.py` es el único entrypoint.
 Estructura actual:
 
-- `app/conversation/graph.py` — grafo LangGraph: nodos `ask`/`finalize`, `State`,
+- `app/conversation/graph.py` — grafo LangGraph: nodos `ask`/`review`, `State`,
   `FeedbackReport` (feedback Markdown libre + `words` + `phrases`), `initial_state`.
 - `app/conversation/service.py` — `ConversationService` (inyección de dependencias),
   `build_llm`, `build_service`.
 - `app/conversation/synthesizer.py` — sintetiza el brief del alumno (formato fijo
   `### Puntos` + `### Contexto`).
 - `app/conversation/schemas.py` — validación de entrada con Pydantic (sin `if`s).
+- `app/conversation/prompts/` — los prompts en archivos `v<N>_<nombre>.md`, fuera del
+  código; se cargan con `prompts.load(prompts.TUTOR_SYSTEM)`.
 - `app/reading/` — catálogo de textos de lectura: ingesta, extractos y scheduler.
 - `app/speech/` — Azure Speech: cliente, evaluación y scoring.
 - `app/limits/` — presupuesto en dólares y cuota por usuario.
@@ -124,7 +126,7 @@ eliminó junto con sus tests.
 - **Qué es**: componer varios grafos/agentes (p. ej. un agente que pregunta y otro que
   evalúa), o subgrafos reutilizables.
 - **Idea aplicada al proyecto**: separar el "tutor que conversa" del "evaluador que da
-  feedback" como agentes distintos, en vez de un solo grafo con `ask`/`finalize`.
+  feedback" como agentes distintos, en vez de un solo grafo con `ask`/`review`.
 - **Por qué (entrevista)**: "multi-agent" es la palabra de moda; conviene tener una demo.
 
 ### 8. Human-in-the-loop
