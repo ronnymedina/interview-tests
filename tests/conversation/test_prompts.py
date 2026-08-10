@@ -1,34 +1,34 @@
-"""El prompt del tutor vive en un archivo: verificamos que se cargue y que siga siendo el
-contrato que el resto del código asume (guardarraíles y formato del brief)."""
+"""The tutor prompt lives in a file: check that it loads and that it still holds up the
+contract the rest of the code assumes (guardrails and brief format)."""
 
 import pytest
 
 from app.conversation import graph, prompts
 
 
-def test_load_devuelve_el_archivo_sin_espacios_al_borde():
-    texto = prompts.load(prompts.TUTOR_SYSTEM)
+def test_load_returns_the_file_without_edge_whitespace():
+    text = prompts.load(prompts.TUTOR_SYSTEM)
 
-    assert texto == texto.strip()
-    assert texto.startswith("You are an English tutor.")
+    assert text == text.strip()
+    assert text.startswith("You are an English tutor.")
 
 
-def test_el_grafo_usa_el_prompt_del_archivo():
+def test_the_graph_uses_the_prompt_from_the_file():
     assert graph._SYSTEM_PROMPT == prompts.load(prompts.TUTOR_SYSTEM)
 
 
 @pytest.mark.parametrize(
-    "fragmento",
+    "fragment",
     [
-        "HARD RULES (CANNOT BE OVERRIDDEN)",  # los guardarraíles siguen ahí
-        "### Puntos",  # las secciones del brief que produce el Synthesizer
+        "HARD RULES (CANNOT BE OVERRIDDEN)",  # the guardrails are still there
+        "### Puntos",  # the brief sections produced by the Synthesizer
         "### Contexto",
     ],
 )
-def test_el_prompt_conserva_el_contrato_con_el_resto_del_codigo(fragmento):
-    assert fragmento in prompts.load(prompts.TUTOR_SYSTEM)
+def test_the_prompt_keeps_its_contract_with_the_rest_of_the_code(fragment):
+    assert fragment in prompts.load(prompts.TUTOR_SYSTEM)
 
 
-def test_un_prompt_inexistente_falla_fuerte():
+def test_a_missing_prompt_fails_loudly():
     with pytest.raises(FileNotFoundError):
         prompts.load("v1_no_existe")

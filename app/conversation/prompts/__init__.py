@@ -1,28 +1,29 @@
-"""Prompts del módulo de conversación, versionados en archivos en vez de en el código.
+"""Conversation prompts, versioned as files instead of inlined in the code.
 
-Convención de nombre: ``v<N>_<nombre>.md``. Un cambio que altere el comportamiento del
-tutor crea una versión nueva (``v2_...``) en lugar de editar la vigente: así el texto
-exacto que produjo una traza vieja sigue existiendo y se puede comparar.
+Naming convention: ``v<N>_<name>.md``. A change that alters the tutor's behaviour creates
+a new version (``v2_...``) instead of editing the current one, so the exact text behind an
+old trace still exists and can be compared.
 
-Los prompts van en inglés (son para el LLM) y en Markdown, porque el propio prompt usa
-encabezados y listas.
+Prompts are written in English (they are for the LLM) and in Markdown, because the prompt
+itself uses headings and lists.
 """
 
-from functools import cache
 from pathlib import Path
 
 _DIR = Path(__file__).parent
 
-#: Reglas fijas del tutor. Se cargan como `SystemMessage` y tienen precedencia sobre el
-#: brief del alumno.
+#: Fixed tutor guardrails. Loaded as a `SystemMessage`, they take precedence over the
+#: student's brief.
 TUTOR_SYSTEM = "v1_tutor_system"
 
 
-@cache
 def load(name: str) -> str:
-    """Devuelve el texto de ``prompts/<name>.md``, leído del disco una sola vez.
+    """Return the text of ``prompts/<name>.md``.
 
-    Falla con `FileNotFoundError` si el archivo no existe: es un error de despliegue
-    (el prompt no llegó a la imagen) y conviene que se vea en el arranque.
+    Raises `FileNotFoundError` when the file is missing: that is a deployment error (the
+    prompt never made it into the image) and it should surface at startup.
     """
+    # NOTE: reads from disk on every call. Today each prompt is loaded once, at import
+    # time, so this is not on any hot path. If a caller ever needs it repeatedly (inside
+    # a graph node, a request handler), add `@functools.cache` on top of this function.
     return (_DIR / f"{name}.md").read_text(encoding="utf-8").strip()
