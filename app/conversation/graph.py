@@ -66,7 +66,7 @@ class State(TypedDict):
     """Mutable state that travels through the graph, persisted per conversation by the checkpointer."""
 
     messages: Annotated[list[AnyMessage], add_messages]
-    brief: str  # the student's brief, already synthesized (### Puntos + ### Contexto)
+    session_brief: str  # the student's brief, already synthesized (### Puntos + ### Contexto)
     max_questions: int
     questions_asked: int
     content_feedback: str  # free-form Markdown feedback
@@ -75,7 +75,7 @@ class State(TypedDict):
     finished: bool
 
 
-def initial_state(brief: str, max_questions: int) -> State:
+def initial_state(session_brief: str, max_questions: int) -> State:
     """Initial state to start a conversation.
 
     Seeds the history with the fixed rules (SystemMessage) and the student's brief as the
@@ -83,8 +83,8 @@ def initial_state(brief: str, max_questions: int) -> State:
     `ask` node can request the first question without any artificial kickoff.
     """
     return {
-        "messages": [SystemMessage(_SYSTEM_PROMPT), HumanMessage(brief)],
-        "brief": brief,
+        "messages": [SystemMessage(_SYSTEM_PROMPT), HumanMessage(session_brief)],
+        "session_brief": session_brief,
         "max_questions": max_questions,
         "questions_asked": 0,
         "content_feedback": "",

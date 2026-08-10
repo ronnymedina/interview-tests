@@ -99,8 +99,9 @@ inyectan dobles en memoria (`tests/*/doubles.py`) en vez de tocar infraestructur
   el cliente nunca lo manda. Si lo mandara, podría evaluar un audio de "hello" contra una
   referencia "hello" y sacar 100 siempre. `make_excerpt` es determinista, así que releer la
   fila devuelve exactamente lo que se mostró.
-- El brief del alumno entra como primer `HumanMessage` y las reglas fijas del tutor como
-  `SystemMessage`, con precedencia explícita sobre el brief. Sin "kickoff" artificial.
+- El `session_brief` (el contexto del alumno ya sintetizado) entra como primer
+  `HumanMessage` y las reglas fijas del tutor como `SystemMessage`, con precedencia
+  explícita sobre el `session_brief`. Sin "kickoff" artificial.
 - El feedback final es Markdown libre + `words`/`phrases` estructurados vía
   `with_structured_output`.
 - En la conversación, el audio se encola para Azure **sin esperar** y el `transcript` del
