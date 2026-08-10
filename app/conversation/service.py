@@ -43,15 +43,16 @@ class ConversationService:
     def start(self, user_context: str, max_questions: int) -> tuple[str, str, int, int]:
         """Crea una conversación y devuelve (id, 1ª pregunta, nº de pregunta, total).
 
-        Sintetiza el contexto CRUDO del alumno al brief de dos secciones POR DENTRO (no es
-        un paso separado que pida el frontend), genera un `thread_id` fresco y siembra el
-        estado con las reglas fijas + el brief como primer turno humano (`initial_state`).
-        El nº de pregunta y el total permiten al frontend mostrar "Pregunta X de N".
+        Sintetiza el contexto CRUDO del alumno al `session_brief` de dos secciones POR
+        DENTRO (no es un paso separado que pida el frontend), genera un `thread_id` fresco
+        y siembra el estado con las reglas fijas + el brief como primer turno humano
+        (`initial_state`). El nº de pregunta y el total permiten al frontend mostrar
+        "Pregunta X de N".
         """
-        brief = self._synthesizer.synthesize(user_context)
+        session_brief = self._synthesizer.synthesize(user_context)
         conversation_id = uuid.uuid4().hex
         result = self._graph.invoke(
-            initial_state(brief, max_questions), self._thread(conversation_id)
+            initial_state(session_brief, max_questions), self._thread(conversation_id)
         )
         return (
             conversation_id,
@@ -80,7 +81,7 @@ class ConversationService:
             return {
                 "final": {
                     "content_feedback": result["content_feedback"],
-                    "brief": result["brief"],
+                    "session_brief": result["session_brief"],
                     "questions_asked": result["questions_asked"],
                     "practice_words": result["practice_words"],
                     "practice_phrases": result["practice_phrases"],
