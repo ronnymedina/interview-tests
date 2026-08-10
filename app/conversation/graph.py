@@ -8,32 +8,18 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 from . import prompts
-from .messages import content_text
+from .messages import content_text, render_transcript
+from .synthesizer import focus_points
 
 # Fixed tutor guardrails, versioned in `prompts/v1_tutor_system.md`. They go in as a
 # SystemMessage and take precedence over the student's brief. The brief enters as the FIRST
 # HumanMessage, so Gemini's `contents` is never empty and no artificial kickoff is needed.
 _SYSTEM_PROMPT = prompts.load(prompts.TUTOR_SYSTEM)
 
-# Final feedback instruction. It defines only the BEHAVIOUR and the output format.
-# 'feedback' is FREE-FORM Markdown text (not a fixed checklist); WHAT to evaluate comes from
-# the "### Puntos" section of the brief. Words and phrases are structured separately.
-_FEEDBACK_INSTRUCTION = (
-    "The practice is over. Produce a FeedbackReport.\n"
-    "- 'feedback': free-form feedback in Spanish, written in Markdown (use headings and bullets "
-    "as you see fit). Be clear and as detailed as useful, focused on the aspects the learner "
-    "listed in the '### Puntos' section of their brief. Do NOT restrict yourself to a fixed "
-    "checklist; cover what actually matters for THIS learner.\n"
-    "- 'words': up to 10 English words the learner should practice (mispronounced or worth "
-    "improving). For each: 'hint' is a short pronunciation cue (e.g. '-ed -> /t/'), empty string "
-    "if none; 'present' is the present/base form when the word is a verb (especially a past-tense "
-    "verb, e.g. 'work' for 'worked'), empty string when it does not apply (nouns, etc.).\n"
-    "- 'phrases': phrase-level suggestions. Whenever the learner said something that could be more "
-    "natural or was grammatically off, add an entry with 'original' (what they said), 'suggestion' "
-    "(a better version) and 'note' (a short reason in Spanish, empty string if none). "
-    "E.g. original 'I will make' -> suggestion \"I'll make\" (contraction); original 'I doesn't' -> "
-    "suggestion \"I don't\" (negative conjugation)."
-)
+# Reviewer system prompt. Unlike the tutor's, it is NOT part of the conversation history:
+# the `review` node builds its own message list from scratch, so nothing the tutor was told
+# leaks into the evaluation.
+_REVIEWER_PROMPT = prompts.load(prompts.REVIEWER_GENERAL)
 
 
 class PracticeWord(BaseModel):
@@ -94,8 +80,12 @@ def initial_state(session_brief: str, max_questions: int) -> State:
     }
 
 
-def build_graph(llm, checkpointer: BaseCheckpointSaver | None = None):
+def build_graph(tutor_llm, review_llm, checkpointer: BaseCheckpointSaver | None = None):
     """Build and compile the graph: `ask`/`review` nodes, function-based routing, checkpointer.
+
+    Two separate LLM instances on purpose: `ask` runs hot (varied, natural questions) and
+    `review` runs cold (stable, reproducible evaluation). See
+    `docs/superpowers/specs/2026-08-09-revisor-separado-design.md`.
 
     Each invocation runs exactly one node (ask or review) and ends; the state persists per
     `thread_id` across invocations thanks to the checkpointer.
@@ -109,7 +99,7 @@ def build_graph(llm, checkpointer: BaseCheckpointSaver | None = None):
     def ask(state: State) -> dict:
         # The history already starts with SystemMessage + the brief as a HumanMessage (see
         # `initial_state`), so there is always a user turn and no kickoff is needed.
-        question = content_text(llm.invoke(state["messages"]))
+        question = content_text(tutor_llm.invoke(state["messages"]))
         return {
             "messages": [AIMessage(question)],
             "questions_asked": state["questions_asked"] + 1,
@@ -117,9 +107,21 @@ def build_graph(llm, checkpointer: BaseCheckpointSaver | None = None):
 
 
     def review(state: State) -> dict:
-        # Conversation reviewer: closes the practice session and emits the FeedbackReport.
-        report = llm.with_structured_output(FeedbackReport).invoke(
-            state["messages"] + [HumanMessage(_FEEDBACK_INSTRUCTION)]
+        # A separate agent: its own system prompt and a message list built from scratch.
+        # The conversation goes in as DATA inside a HumanMessage, never as the history —
+        # as AIMessages the model would be judging its own turns, and it goes easy on
+        # itself. The brief's `### Contexto` stays out: it is what to talk about, not what
+        # to evaluate, and it can be huge.
+        report = review_llm.with_structured_output(FeedbackReport).invoke(
+            [
+                SystemMessage(_REVIEWER_PROMPT),
+                HumanMessage(
+                    "### Points to evaluate\n"
+                    f"{focus_points(state['session_brief'])}\n\n"
+                    "### Transcript\n"
+                    f"{render_transcript(state['messages'])}"
+                ),
+            ]
         )
         return {
             "finished": True,
