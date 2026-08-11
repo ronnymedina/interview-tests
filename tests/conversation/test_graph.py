@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.conversation import prompts
-from app.conversation.graph import FeedbackReport, build_graph, initial_state
+from app.conversation.graph import ConversationGraph, FeedbackReport, initial_state
 
 UN_BRIEF = (
     "### Puntos que quiero estudiar y sobre los que debo recibir feedback\n"
@@ -46,7 +46,7 @@ class FakeReviewLLM(FakeLLM):
 
 def corre_hasta_el_review(tutor_llm, review_llm, max_questions=1):
     """Arranca una conversación y la lleva hasta que dispara el nodo `review`."""
-    graph = build_graph(tutor_llm, review_llm)
+    graph = ConversationGraph(tutor_llm, review_llm).compile()
     thread = {"configurable": {"thread_id": "t1"}}
     graph.invoke(initial_state(UN_BRIEF, max_questions), thread)
     return graph.invoke({"messages": [HumanMessage("I worked in a API.")]}, thread)

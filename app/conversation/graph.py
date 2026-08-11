@@ -80,39 +80,58 @@ def initial_state(session_brief: str, max_questions: int) -> State:
     }
 
 
-def build_graph(tutor_llm, review_llm, checkpointer: BaseCheckpointSaver | None = None):
-    """Build and compile the graph: `ask`/`review` nodes, function-based routing, checkpointer.
+class ConversationGraph:
+    """The practice graph: `ask`/`review` nodes, function-based routing, checkpointer.
 
     Two separate LLM instances on purpose: `ask` runs hot (varied, natural questions) and
     `review` runs cold (stable, reproducible evaluation). See
     `docs/superpowers/specs/2026-08-09-revisor-separado-design.md`.
 
-    Each invocation runs exactly one node (ask or review) and ends; the state persists per
-    `thread_id` across invocations thanks to the checkpointer.
+    Instantiate once with the collaborators and call `compile()` to get the runnable graph.
+    Each invocation of that graph runs exactly one node (ask or review) and ends; the state
+    persists per `thread_id` across invocations thanks to the checkpointer.
     """
 
-    def route(state: State) -> str:
+    ASK = "ask"
+    REVIEW = "review"
+
+    def __init__(self, tutor_llm, review_llm, checkpointer: BaseCheckpointSaver | None = None):
+        self._tutor_llm = tutor_llm
+        self._review_llm = review_llm
+        self._checkpointer = checkpointer or InMemorySaver()
+
+    def compile(self):
+        """Wire the nodes and edges and compile the graph."""
+        builder = StateGraph(State)
+        builder.add_node(self.ASK, self._ask)
+        builder.add_node(self.REVIEW, self._review)
+        builder.add_conditional_edges(
+            START, self._route, {self.ASK: self.ASK, self.REVIEW: self.REVIEW}
+        )
+        builder.add_edge(self.ASK, END)
+        builder.add_edge(self.REVIEW, END)
+        return builder.compile(checkpointer=self._checkpointer)
+
+    def _route(self, state: State) -> str:
         # From START: go to `review` once the question cap is reached, otherwise to `ask`.
-        return "review" if state["questions_asked"] >= state["max_questions"] else "ask"
+        return self.REVIEW if state["questions_asked"] >= state["max_questions"] else self.ASK
 
-
-    def ask(state: State) -> dict:
+    def _ask(self, state: State) -> dict:
         # The history already starts with SystemMessage + the brief as a HumanMessage (see
         # `initial_state`), so there is always a user turn and no kickoff is needed.
-        question = content_text(tutor_llm.invoke(state["messages"]))
+        question = content_text(self._tutor_llm.invoke(state["messages"]))
         return {
             "messages": [AIMessage(question)],
             "questions_asked": state["questions_asked"] + 1,
         }
 
-
-    def review(state: State) -> dict:
+    def _review(self, state: State) -> dict:
         # A separate agent: its own system prompt and a message list built from scratch.
         # The conversation goes in as DATA inside a HumanMessage, never as the history —
         # as AIMessages the model would be judging its own turns, and it goes easy on
         # itself. The brief's `### Contexto` stays out: it is what to talk about, not what
         # to evaluate, and it can be huge.
-        report = review_llm.with_structured_output(FeedbackReport).invoke(
+        report = self._review_llm.with_structured_output(FeedbackReport).invoke(
             [
                 SystemMessage(_REVIEWER_PROMPT),
                 HumanMessage(
@@ -129,12 +148,3 @@ def build_graph(tutor_llm, review_llm, checkpointer: BaseCheckpointSaver | None 
             "practice_words": [word.model_dump() for word in report.words],
             "practice_phrases": [phrase.model_dump() for phrase in report.phrases],
         }
-
-
-    builder = StateGraph(State)
-    builder.add_node("ask", ask)
-    builder.add_node("review", review)
-    builder.add_conditional_edges(START, route, {"ask": "ask", "review": "review"})
-    builder.add_edge("ask", END)
-    builder.add_edge("review", END)
-    return builder.compile(checkpointer=checkpointer or InMemorySaver())
