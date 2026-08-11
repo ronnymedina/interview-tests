@@ -15,13 +15,25 @@ import sys
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # pydantic-settings lee el .env para sus propios campos, pero NO lo carga en os.environ.
 # Este load_dotenv() sigue haciendo falta: LangChain lee las variables de LangSmith
 # directamente del entorno, y sin esto las trazas se apagan en silencio.
 load_dotenv()
+
+# Supported chat providers, mapped to the settings field holding their API key. The
+# "provider:model" strings are validated against these keys, so a typo fails at startup
+# instead of building a client that 401s on the first request.
+#
+# Adding a provider means adding its API key field to `Settings` and one entry here — the
+# construction code reads this map and never names a provider itself. Presence of the key is
+# NOT checked here on purpose: only the providers actually named by the configured models
+# are required, and that check belongs where the models get built.
+PROVIDER_API_KEY_FIELDS = {
+    "google_genai": "GEMINI_API_KEY",
+}
 
 
 class Settings(BaseSettings):
@@ -75,12 +87,15 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("DD_VERSION", "SERVICE_VERSION"),
     )
 
-    # --- Conversacion (Gemini) -----------------------------------------------------------
-    # Sin la key el servidor arranca igual y los endpoints de conversacion responden 503.
+    # --- Conversation (LLM) --------------------------------------------------------------
+    # Missing keys do not stop the server: it starts anyway and the conversation endpoints
+    # answer 503. Which key is required depends on the providers the models below name, so
+    # presence is checked at construction time, not here — see `PROVIDER_API_KEY_FIELDS`.
     GEMINI_API_KEY: str = ""
 
-    # Modelo del chat en formato "proveedor:modelo" que consume init_chat_model. Cambiar de
-    # proveedor (p. ej. "openai:gpt-5-nano") es cambiar esta variable, no el codigo.
+    # Chat model as "provider:model", the format `init_chat_model` consumes. Only the
+    # providers in `PROVIDER_API_KEY_FIELDS` are accepted: each one needs its own API key
+    # field, so adding a provider is a config change, not just a different string here.
     CHAT_MODEL: str = "google_genai:gemini-2.5-flash"
 
     # Temperatura del tutor. Alta a proposito: preguntas variadas y naturales, que no
@@ -95,6 +110,35 @@ class Settings(BaseSettings):
     # Temperatura del revisor. Baja a proposito: la evaluacion tiene que ser estable y
     # reproducible, no creativa.
     REVIEW_TEMPERATURE: float = 0.2
+
+    @field_validator("CHAT_MODEL")
+    @classmethod
+    def _required_model(cls, value: str) -> str:
+        """`CHAT_MODEL` has no fallback: empty leaves nothing to build a client from."""
+        if not value:
+            raise ValueError("cannot be empty: it is the model every role falls back to")
+        return cls._known_provider(value)
+
+    @field_validator("REVIEW_CHAT_MODEL")
+    @classmethod
+    def _optional_model(cls, value: str) -> str:
+        """Empty is valid here: it means "use `CHAT_MODEL`", not "no provider"."""
+        return cls._known_provider(value) if value else value
+
+    @classmethod
+    def _known_provider(cls, value: str) -> str:
+        """Reject a model string whose provider has no API key field behind it.
+
+        Only the format is checked: whether the model actually exists is something only the
+        provider's API can tell.
+        """
+        provider, separator, _ = value.partition(":")
+        if not separator:
+            raise ValueError(f"expected 'provider:model', got {value!r}")
+        if provider not in PROVIDER_API_KEY_FIELDS:
+            supported = ", ".join(sorted(PROVIDER_API_KEY_FIELDS))
+            raise ValueError(f"unsupported provider {provider!r}; supported: {supported}")
+        return value
 
     # LangSmith (observabilidad). Estas variables NO se declaran como campos a proposito:
     # LangChain las consume directamente del entorno, y el load_dotenv() de arriba ya las
