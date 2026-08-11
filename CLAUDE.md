@@ -9,11 +9,18 @@ prompts al LLM. **Los mensajes de commit y las descripciones de los pull request
 van en inglés**, siguiendo conventional commits con scope:
 `feat(reading): filter the catalog by maximum level`.
 
-**La documentación va en español**: este archivo, `README.md` y todo `docs/`.
+**`docs/` va en inglés**, con nombres de archivo en minúscula y kebab-case
+(`environments.md`, `pending-changes.md`). **En español quedan solo este archivo y
+`README.md`**, que son la puerta de entrada al repo.
 
-Esta convención cambió: buena parte del código todavía tiene comentarios y docstrings en
-español. La migración es orgánica — cuando toques un archivo por otro motivo, pasá a inglés
-lo que estés modificando. No hace falta traducir un archivo entero solo por pasar por ahí.
+Excepción: `docs/superpowers/specs/` y `docs/superpowers/plans/` son documentos históricos
+fechados. Se dejan como están —incluido el español— porque registran lo que se decidió en su
+momento; no se traducen ni se actualizan cuando el código cambia después.
+
+Estas convenciones cambiaron sobre la marcha: buena parte del código todavía tiene
+comentarios y docstrings en español. La migración es orgánica — cuando toques un archivo por
+otro motivo, pasá a inglés lo que estés modificando. No hace falta traducir un archivo entero
+solo por pasar por ahí.
 
 ## Comandos
 
@@ -86,9 +93,7 @@ inyectan dobles en memoria (`tests/*/doubles.py`) en vez de tocar infraestructur
 
 | Módulo | Rol |
 |---|---|
-| `app/conversation/` | Grafo LangGraph (`graph.py`: nodos `ask`/`review`, checkpointer en memoria por `thread_id`), `synthesizer.py` que normaliza el contexto libre del alumno al brief fijo, `service.py`,
-`llm.py` (`build_chat_model`, único punto que traduce `settings` a una instancia de
-proveedor; el composition root `build_conversation_graph_service` vive en `__init__.py`), `schemas.py` (validación de entrada), `messages.py` y `prompts/` (los prompts en archivos `v<N>_<nombre>.md`, cargados con `prompts.load`) |
+| `app/conversation/` | Grafo LangGraph (`graph.py`: la clase `ConversationGraph` con los nodos `ask`/`review` como métodos y `compile()`, checkpointer en memoria por `thread_id`), `synthesizer.py` que normaliza el contexto libre del alumno al brief fijo, `service.py`, `__init__.py` (composition root: `build_conversation_graph_service`, `build_chat_model` y `api_key_for`, único lugar del módulo que lee `settings`), `schemas.py` (validación de entrada), `messages.py` y `prompts/` (los prompts en archivos `v<N>_<nombre>.md`, cargados con `prompts.load`) |
 | `app/reading/` | Catálogo de textos: `sources/` obtiene → `ingest` orquesta → `repository` persiste; `scheduler` repite cada N horas dentro del servidor; `excerpt.py` recorta |
 | `app/speech/` | `azure_client.py` habla con el SDK; `assessment.py` tiene los dos modos (unscripted para la conversación, scripted contra referencia para la lectura); `scoring.py` la cola diferida |
 | `app/limits/` | Presupuesto en dólares (diario y total) y cuota por usuario. Precedencia: total → diario → cuota |
@@ -101,6 +106,13 @@ proveedor; el composition root `build_conversation_graph_service` vive en `__ini
   el cliente nunca lo manda. Si lo mandara, podría evaluar un audio de "hello" contra una
   referencia "hello" y sacar 100 siempre. `make_excerpt` es determinista, así que releer la
   fila devuelve exactamente lo que se mostró.
+- **El proveedor del LLM sale del prefijo del modelo, y cada proveedor trae su propia key.**
+  `PROVIDER_API_KEY_FIELDS` en `config.py` mapea `"google_genai"` → `GEMINI_API_KEY`; un
+  `field_validator` rechaza al arrancar cualquier prefijo que no esté en el mapa. La
+  *presencia* de la key no se valida ahí a propósito: se chequea en `api_key_for()` solo
+  para los proveedores que los modelos configurados nombran, así correr el revisor en otro
+  proveedor no exige una key que nadie usa. Agregar un proveedor = un campo nuevo en
+  `Settings` más una entrada en el mapa; el código de construcción nunca nombra proveedores.
 - El `session_brief` (el contexto del alumno ya sintetizado) entra como primer
   `HumanMessage` y las reglas fijas del tutor como `SystemMessage`, con precedencia
   explícita sobre el `session_brief`. Sin "kickoff" artificial.
@@ -122,7 +134,7 @@ dominio son excepciones propias con `status` HTTP (`ConversationError`, `Reading
 
 ## Documentación
 
-`docs/ENVS.md` (cada variable), `docs/DEPLOY.md`, `docs/AZURE-PRONUNCIATION.md`,
-`docs/APRENDIZAJE.md` (roadmap de LangGraph aplicado al proyecto) y `docs/CAMBIOS-PENDIENTES.md`.
-Cada feature tiene su diseño y su plan en `docs/superpowers/specs/` y `docs/superpowers/plans/`,
-nombrados por fecha.
+`docs/environments.md` (cada variable: si es requerida, valores aceptados y qué poner en
+producción), `docs/deploy.md`, `docs/azure-pronunciation.md`, `docs/learning.md` (roadmap de
+LangGraph aplicado al proyecto) y `docs/pending-changes.md`. Cada feature tiene su diseño y su
+plan en `docs/superpowers/specs/` y `docs/superpowers/plans/`, nombrados por fecha.

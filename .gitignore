@@ -9,3 +9,7 @@ __pycache__/
 .hypothesis/
 .coverage
 htmlcov/
+
+# Worktrees que crean las skills (copias del repo, no configuracion del proyecto).
+# El resto de .claude/ (settings.json, skills, agents) SI se versiona.
+.claude/worktrees/
