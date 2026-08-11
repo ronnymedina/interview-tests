@@ -52,7 +52,7 @@ apuntando al servicio `db`.
 
 Antes de exponer la app a otras personas, revisa tambien `DAILY_BUDGET_USD`,
 `TOTAL_BUDGET_USD` y las cuotas por usuario: **son el unico freno de gasto**. El detalle de
-cada variable esta en [docs/ENVS.md](docs/ENVS.md); todas se leen en un unico lugar,
+cada variable esta en [docs/environments.md](docs/environments.md); todas se leen en un unico lugar,
 [`config.py`](config.py).
 
 ## Correr la app
@@ -175,9 +175,9 @@ proyecto.
 
 | Documento | Contenido |
 |---|---|
-| [docs/DEPLOY.md](docs/DEPLOY.md) | Construccion de la imagen, stages del Dockerfile, CI y pasos para desplegar |
-| [docs/ENVS.md](docs/ENVS.md) | Cada variable de entorno, su default y para que sirve |
-| [docs/AZURE-PRONUNCIATION.md](docs/AZURE-PRONUNCIATION.md) | Como funciona el Pronunciation Assessment de Azure y que configuracion usa este proyecto |
+| [docs/deploy.md](docs/deploy.md) | Construccion de la imagen, stages del Dockerfile, CI y pasos para desplegar |
+| [docs/environments.md](docs/environments.md) | Cada variable de entorno, su default y para que sirve |
+| [docs/azure-pronunciation.md](docs/azure-pronunciation.md) | Como funciona el Pronunciation Assessment de Azure y que configuracion usa este proyecto |
 | [docs/superpowers/](docs/superpowers/) | Planes y specs de cada feature |
 
 > El servidor **no tiene autenticacion**. La identidad es un `X-User-Id` que manda el
