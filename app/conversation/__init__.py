@@ -28,6 +28,7 @@ __all__ = [
     "Synthesizer",
     "build_chat_model",
     "build_conversation_graph_service",
+    "build_synthesizer",
     "initial_state",
 ]
 
@@ -52,7 +53,7 @@ def api_key_for(model: str) -> str:
     return str(key)
 
 
-def build_chat_model(model: str, api_key: str, temperature: float | None = None):
+def build_chat_model(model: str, temperature: float | None = None):
     """Translate a "provider:model" string into a LangChain chat model instance.
 
     The only point in the module that knows about concrete providers. It reads no
@@ -63,8 +64,27 @@ def build_chat_model(model: str, api_key: str, temperature: float | None = None)
 
     # `temperature=None` is not passed through: some providers send it literally in the
     # request instead of reading it as "unspecified". When unset, the key is simply absent.
+    api_key = api_key_for(model)
     kwargs: dict[str, Any] = {} if temperature is None else {"temperature": temperature}
     return init_chat_model(model, api_key=api_key, **kwargs)
+
+
+def build_synthesizer() -> Synthesizer:
+    """Build the synthesizer on its own, so evals can run it without the whole graph.
+
+    It uses `CHAT_MODEL` with no explicit temperature: the provider default is its
+    historical behaviour.
+    """
+    return Synthesizer(build_chat_model(settings.CHAT_MODEL))
+
+
+def build_review():
+    review_model = settings.REVIEW_CHAT_MODEL or settings.CHAT_MODEL
+    return build_chat_model(review_model, settings.REVIEW_TEMPERATURE)
+
+
+def build_tutor():
+    return build_chat_model(settings.CHAT_MODEL, settings.CHAT_TEMPERATURE)
 
 
 def build_conversation_graph_service(checkpointer=None) -> ConversationService:
@@ -76,15 +96,11 @@ def build_conversation_graph_service(checkpointer=None) -> ConversationService:
     `REVIEW_CHAT_MODEL` vacío cae a `CHAT_MODEL`, así que por default los tres apuntan al
     mismo modelo y el costo por token no cambia.
     """
-    model = settings.CHAT_MODEL
-    review_model = settings.REVIEW_CHAT_MODEL or model
-    chat_key = api_key_for(settings.CHAT_MODEL)
-    review_key = api_key_for(review_model)
+    synthesizer = build_synthesizer()
+    tutor_llm = build_tutor()
+    review_llm = build_review()
 
-    synthesizer_llm = build_chat_model(model, chat_key)
-    tutor_llm = build_chat_model(model, chat_key, settings.CHAT_TEMPERATURE)
-    review_llm = build_chat_model(review_model, review_key, settings.REVIEW_TEMPERATURE)
     return ConversationService(
         ConversationGraph(tutor_llm, review_llm, checkpointer).compile(),
-        Synthesizer(synthesizer_llm),
+        synthesizer,
     )

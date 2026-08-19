@@ -1,8 +1,8 @@
 """Chat model construction and the per-role model/temperature config feeding it.
 
-`build_chat_model` reads no configuration: it takes model, key and temperature. What is
-worth testing here is the translation into a provider instance, and the key lookup that
-decides which provider is actually required.
+`build_chat_model` takes model and temperature, and resolves the provider key through
+`api_key_for`. What is worth testing here is the translation into a provider instance, and
+the key lookup that decides which provider is actually required.
 """
 
 import pytest
@@ -16,14 +16,15 @@ A_MODEL = "google_genai:gemini-2.5-flash"
 A_KEY = "fake-key-for-construction"
 
 
-def test_builds_the_provider_client_for_the_model_string():
+def test_builds_the_provider_client_for_the_model_string(monkeypatch):
     """`init_chat_model` resolves "google_genai:..." to the concrete client (no network)."""
-    llm = build_chat_model(A_MODEL, A_KEY)
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", A_KEY)
+    llm = build_chat_model(A_MODEL)
     assert type(llm).__name__ == "ChatGoogleGenerativeAI"
     assert str(llm.model).endswith("gemini-2.5-flash")
 
 
-def test_without_temperature_it_is_not_sent_to_the_provider():
+def test_without_temperature_it_is_not_sent_to_the_provider(monkeypatch):
     """Called without a temperature, the kwarg must be absent, not None.
 
     The kwarg is spied instead of reading `llm.temperature` because the default depends on
@@ -32,6 +33,7 @@ def test_without_temperature_it_is_not_sent_to_the_provider():
     """
     import langchain.chat_models as chat_models
 
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", A_KEY)
     received = {}
 
     def fake_init_chat_model(model, **kwargs):
@@ -41,14 +43,15 @@ def test_without_temperature_it_is_not_sent_to_the_provider():
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(chat_models, "init_chat_model", fake_init_chat_model)
-        build_chat_model(A_MODEL, A_KEY)
+        build_chat_model(A_MODEL)
 
     assert "temperature" not in received["kwargs"]
     assert received["model"] == A_MODEL
 
 
-def test_the_temperature_is_applied_when_given():
-    llm = build_chat_model(A_MODEL, A_KEY, 0.2)
+def test_the_temperature_is_applied_when_given(monkeypatch):
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", A_KEY)
+    llm = build_chat_model(A_MODEL, 0.2)
     assert llm.temperature == 0.2
 
 
