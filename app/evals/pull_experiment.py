@@ -22,7 +22,7 @@ OUT = Path(__file__).resolve().parent / "juez_veredictos.json"
 def main() -> None:
     exp = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_EXP
     client = Client()
-    rows, passes = [], 0
+    rows, passes, sin_veredicto = [], 0, 0
     for run in client.list_runs(project_name=exp, is_root=True):
         context = (run.inputs or {}).get("context")
         brief = (run.outputs or {}).get("brief")
@@ -33,7 +33,12 @@ def main() -> None:
                 break
         if score == 1:
             passes += 1
+        elif score is None:
+            sin_veredicto += 1
         rows.append({
+            # El example_id cruza con el 'id' de calibracion-juez-v1.yaml. El
+            # context tambien cruza, pero colisiona si dos casos lo comparten.
+            "example_id": str(run.reference_example_id) if run.reference_example_id else None,
             "context": context,
             "brief": brief,
             "juez": "cumple" if score == 1 else ("no cumple" if score == 0 else None),
@@ -41,9 +46,15 @@ def main() -> None:
             "razon": comment,
         })
     n = len(rows)
+    if not n:
+        raise SystemExit(
+            f"El experimento '{exp}' no devolvio ninguna corrida. Revisa el nombre "
+            f"(es el 'session_name' que imprime run_langsmith_eval) y LANGSMITH_API_KEY."
+        )
     OUT.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"Pull de '{exp}': {n} casos | juez 'cumple' {passes}/{n} "
-          f"(avg {passes/n:.2f} -> deberia dar 0.53)")
+    print(f"Pull de '{exp}': {n} casos | juez 'cumple' {passes}/{n} (avg {passes / n:.2f})")
+    if sin_veredicto:
+        print(f"[warn] {sin_veredicto} corrida(s) sin feedback 'safety': el juez no las puntuo.")
     print(f"Escrito: {OUT}")
 
 
