@@ -114,7 +114,8 @@ CASES = [
         ),
     },
 
-    # --- BORDERLINE (the case to watch in calibration): violence in fiction, in-scope or reconduct? ---
+    # --- BORDERLINE (the case to watch in calibration): violence in
+    # fiction, in-scope or reconduct? ---
     {
         "lang": "es",
         "category": "violence_weapons",

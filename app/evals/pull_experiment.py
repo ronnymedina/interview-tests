@@ -11,8 +11,9 @@ import json
 import sys
 from pathlib import Path
 
-import config  # noqa: F401  -> load_dotenv: LANGSMITH_API_KEY, etc.
 from langsmith import Client
+
+import config  # noqa: F401  -> load_dotenv: LANGSMITH_API_KEY, etc.
 
 DEFAULT_EXP = "synthesizer-v1-2026-08-20-71606909"
 OUT = Path(__file__).resolve().parent / "juez_veredictos.json"
